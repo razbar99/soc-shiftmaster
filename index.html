@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOC ShiftMaster Elite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap');
+        body { font-family: 'Assistant', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+        .tab-active { border-bottom: 4px solid #3b82f6; color: #1e40af; font-weight: bold; }
+        .tab-inactive { color: #64748b; font-weight: 600; }
+        .tab-inactive:hover { color: #3b82f6; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <div id="login-screen" style="display: flex;" class="flex-1 items-center justify-center bg-slate-900 absolute inset-0 z-50">
+        <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <i class="fa-solid fa-shield-halved text-5xl text-blue-600 mb-4"></i>
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">ShiftMaster Elite</h1>
+            <p class="text-slate-500 mb-8">מערכת ניהול משמרות SOC</p>
+            
+            <div class="space-y-4">
+                <div class="text-right">
+                    <label class="block text-sm font-semibold mb-1">בחר משתמש</label>
+                    <select id="login-username" class="w-full p-3 border rounded-lg bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="רז ברהום">רז ברהום (מנהל)</option>
+                        <option value="ליאור שם טוב">ליאור שם טוב (עובד)</option>
+                        <option value="יקבה מלדה">יקבה מלדה (עובד)</option>
+                    </select>
+                </div>
+                <button id="btn-login" type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-6 shadow-md transition-colors cursor-pointer">
+                    היכנס למערכת
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app" style="display: none;" class="flex-1 flex-col h-full overflow-y-auto">
+        <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="text-2xl font-bold tracking-wider flex items-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-blue-500"></i> ShiftMaster
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-3 border-l border-slate-700 pl-6">
+                        <span id="nav-username" class="font-semibold"></span>
+                        <span id="nav-role" class="px-3 py-1 rounded-full text-xs font-bold tracking-wide"></span>
+                    </div>
+                    <button id="btn-logout" class="text-slate-300 hover:text-red-400 transition-colors flex items-center gap-2 font-medium cursor-pointer">
+                        התנתק <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-[95%] mx-auto w-full mt-8 p-4">
+            <div class="flex gap-8 border-b border-slate-200 mb-6 pb-2">
+                <button id="tab-btn-board" class="tab-active pb-2 text-lg px-2"><i class="fa-solid fa-calendar-days"></i> לוח משמרות</button>
+                <button id="tab-btn-schedule" class="tab-inactive pb-2 text-lg px-2 admin-only"><i class="fa-solid fa-pen-to-square"></i> ניהול שיבוץ</button>
+                <button id="tab-btn-requests" class="tab-inactive pb-2 text-lg px-2"><i class="fa-solid fa-plane"></i> הגשת בקשות</button>
+            </div>
+
+            <div id="view-board" style="display: block;">
+                <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6">
+                    <button id="btn-prev-week" class="bg-slate-100 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold transition-colors">שבוע קודם</button>
+                    <div class="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <i class="fa-regular fa-calendar text-blue-500"></i>
+                        <span id="week-title">טוען תאריכים...</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-curr-week" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-colors">שבוע נוכחי</button>
+                        <button id="btn-next-week" class="bg-slate-100 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold transition-colors">שבוע הבא</button>
+                    </div>
+                </div>
+                <div id="server-status" class="hidden mb-4"></div>
+                <div id="calendar-grid" class="grid grid-cols-1 md:grid-cols-7 gap-4"></div>
+            </div>
+
+            <div id="view-schedule" style="display: none;" class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200 admin-only">
+                <h2 class="text-2xl font-bold mb-6">הוספת משמרת ללוח</h2>
+                <div class="space-y-5">
+                    <div><label class="block text-sm font-semibold mb-2">תאריך</label><input type="date" id="shift-date" class="w-full p-3 border rounded-lg bg-slate-50"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-semibold mb-2">סוג משמרת</label>
+                            <select id="shift-type" class="w-full p-3 border rounded-lg bg-slate-50">
+                                <option value="בוקר">☀️ בוקר</option><option value="ערב">🌆 ערב</option><option value="לילה">🌙 לילה</option>
+                            </select>
+                        </div>
+                        <div><label class="block text-sm font-semibold mb-2">שעות</label><input type="text" id="shift-hours" value="07:00-15:00" class="w-full p-3 border rounded-lg bg-slate-50"></div>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-2">עובדים משובצים</label><input type="text" id="shift-staff" placeholder="לדוגמה: רז ברהום" class="w-full p-3 border rounded-lg bg-slate-50"></div>
+                    <button id="btn-submit-shift" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-4 transition-colors">שמור משמרת במסד הנתונים</button>
+                </div>
+            </div>
+
+            <div id="view-requests" style="display: none;" class="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-2xl font-bold mb-6">הגשת בקשה למנהל</h2>
+                <div class="space-y-5">
+                    <div><label class="block text-sm font-semibold mb-2">סוג הבקשה</label>
+                        <select id="req-type" class="w-full p-3 border rounded-lg bg-slate-50"><option value="חופשה">חופשה</option><option value="מילואים">מילואים</option></select>
+                    </div>
+                    <div><label class="block text-sm font-semibold mb-2">תאריך מבוקש</label><input type="date" id="req-date" class="w-full p-3 border rounded-lg bg-slate-50"></div>
+                    <div><label class="block text-sm font-semibold mb-2">סיבה / הערות</label><textarea id="req-reason" rows="3" class="w-full p-3 border rounded-lg bg-slate-50"></textarea></div>
+                    <button id="btn-submit-req" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg mt-4">שלח לאישור</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // כל הקוד רץ רק אחרי שהדפדפן סיים לקרוא את ה-HTML
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- משתני זמן למערכת ---
+            let currentViewDate = new Date();
+            const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+            // --- פונקציות עזר (בתוך הבלוק הבטוח) ---
+            function getSunday(d) {
+                const date = new Date(d);
+                const day = date.getDay();
+                return new Date(date.setDate(date.getDate() - day));
+            }
+
+            function switchTab(tabName) {
+                document.getElementById('view-board').style.display = 'none';
+                document.getElementById('view-schedule').style.display = 'none';
+                document.getElementById('view-requests').style.display = 'none';
+                
+                document.getElementById('tab-btn-board').className = 'tab-inactive pb-2 text-lg px-2';
+                document.getElementById('tab-btn-schedule').className = 'tab-inactive pb-2 text-lg px-2 admin-only';
+                document.getElementById('tab-btn-requests').className = 'tab-inactive pb-2 text-lg px-2';
+
+                document.getElementById('view-' + tabName).style.display = 'block';
+                document.getElementById('tab-btn-' + tabName).className = 'tab-active pb-2 text-lg px-2' + (tabName === 'schedule' ? ' admin-only' : '');
+                
+                if(tabName === 'board') renderBoard();
+            }
+
+            async function renderBoard() {
+                const sunday = getSunday(currentViewDate);
+                const saturday = new Date(sunday);
+                saturday.setDate(saturday.getDate() + 6);
+                
+                const formatDateTitle = (d) => `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+                document.getElementById('week-title').innerText = `${formatDateTitle(sunday)} - ${formatDateTitle(saturday)}`;
+
+                const container = document.getElementById('calendar-grid');
+                const statusBox = document.getElementById('server-status');
+                container.innerHTML = '';
+                statusBox.classList.add('hidden');
+
+                try {
+                    // חיבור לשרת (FastAPI)
+                    const response = await fetch('http://127.0.0.1:8000/api/shifts');
+                    if(!response.ok) throw new Error("Server error");
+                    const allShifts = await response.json();
+                    
+                    for(let i=0; i<7; i++) {
+                        let colDate = new Date(sunday);
+                        colDate.setDate(colDate.getDate() + i);
+                        let dateStr = `${colDate.getFullYear()}-${(colDate.getMonth()+1).toString().padStart(2,'0')}-${colDate.getDate().toString().padStart(2,'0')}`;
+                        let displayDate = `${colDate.getDate()}/${colDate.getMonth()+1}`;
+
+                        let colHtml = `<div class="bg-slate-50 border border-slate-200 rounded-xl flex flex-col min-h-[300px]">
+                                        <div class="bg-slate-800 text-white text-center py-2"><div class="font-bold text-lg">${dayNames[i]}</div><div class="text-xs text-slate-300">${displayDate}</div></div>
+                                        <div class="p-2 flex-1 space-y-2">`;
+                        
+                        let dayShifts = allShifts.filter(s => s.date === dateStr);
+                        if (dayShifts.length === 0) {
+                            colHtml += `<div class="text-center text-slate-400 text-sm mt-4">- אין -</div>`;
+                        } else {
+                            dayShifts.forEach(shift => {
+                                let bg = shift.shift_type === 'בוקר' ? 'bg-yellow-100 border-yellow-300' : shift.shift_type === 'ערב' ? 'bg-orange-100 border-orange-300' : 'bg-indigo-100 border-indigo-300';
+                                let staffList = shift.staff ? (Array.isArray(shift.staff) ? shift.staff.join('<br>') : shift.staff.replace(/, /g, '<br>')) : 'לא שובץ';
+                                colHtml += `<div class="${bg} border rounded-lg p-2 shadow-sm"><div class="font-bold text-slate-800 text-sm border-b border-black/10 pb-1 mb-1">${shift.shift_type} <span class="font-normal text-xs float-left">${shift.hours}</span></div><div class="text-sm text-slate-700 mt-1">${staffList}</div></div>`;
+                            });
+                        }
+                        colHtml += `</div></div>`;
+                        container.innerHTML += colHtml;
+                    }
+                } catch (error) { 
+                    statusBox.classList.remove('hidden');
+                    statusBox.innerHTML = `<div class="bg-red-100 text-red-700 px-4 py-3 rounded text-center border border-red-300"><i class="fa-solid fa-triangle-exclamation"></i> שרת הפייתון כבוי. מוצג לוח ריק ללא נתונים.</div>`;
+                    for(let i=0; i<7; i++) {
+                        let colDate = new Date(sunday);
+                        colDate.setDate(colDate.getDate() + i);
+                        let displayDate = `${colDate.getDate()}/${colDate.getMonth()+1}`;
+                        container.innerHTML += `<div class="bg-slate-50 border border-slate-200 rounded-xl flex flex-col min-h-[300px]"><div class="bg-slate-800 text-white text-center py-2"><div class="font-bold text-lg">${dayNames[i]}</div><div class="text-xs">${displayDate}</div></div><div class="p-2 flex-1"><div class="text-center text-slate-400 text-sm mt-4">מנותק מהשרת</div></div></div>`;
+                    }
+                }
+            }
+
+            // --- האזנה לכפתורים (ללא onclick ב-HTML) ---
+            
+            // 1. כפתור התחברות
+            document.getElementById('btn-login').addEventListener('click', () => {
+                const username = document.getElementById('login-username').value;
+                const role = username === 'רז ברהום' ? 'Admin' : 'User';
+                
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'flex';
+                
+                document.getElementById('nav-username').innerText = username;
+                document.getElementById('nav-role').innerText = role;
+                document.getElementById('nav-role').className = role === 'Admin' ? 'bg-blue-600 px-3 py-1 rounded-full text-xs font-bold' : 'bg-slate-600 px-3 py-1 rounded-full text-xs font-bold';
+
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = role === 'Admin' ? 'inline-block' : 'none');
+                
+                switchTab('board');
+            });
+
+            // 2. כפתור התנתקות
+            document.getElementById('btn-logout').addEventListener('click', () => {
+                document.getElementById('main-app').style.display = 'none';
+                document.getElementById('login-screen').style.display = 'flex';
+            });
+
+            // 3. טאבים
+            document.getElementById('tab-btn-board').addEventListener('click', () => switchTab('board'));
+            document.getElementById('tab-btn-schedule').addEventListener('click', () => switchTab('schedule'));
+            document.getElementById('tab-btn-requests').addEventListener('click', () => switchTab('requests'));
+
+            // 4. לחצני ניווט שבועות
+            document.getElementById('btn-prev-week').addEventListener('click', () => { currentViewDate.setDate(currentViewDate.getDate() - 7); renderBoard(); });
+            document.getElementById('btn-next-week').addEventListener('click', () => { currentViewDate.setDate(currentViewDate.getDate() + 7); renderBoard(); });
+            document.getElementById('btn-curr-week').addEventListener('click', () => { currentViewDate = new Date(); renderBoard(); });
+
+            // 5. שמירת משמרת
+            document.getElementById('btn-submit-shift').addEventListener('click', async () => {
+                const payload = {
+                    date: document.getElementById('shift-date').value,
+                    shift_type: document.getElementById('shift-type').value,
+                    hours: document.getElementById('shift-hours').value,
+                    staff: document.getElementById('shift-staff').value 
+                };
+                if(!payload.date || !payload.staff) { alert('נא למלא תאריך ושמות עובדים.'); return; }
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/shifts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if(response.ok) { alert('✅ משמרת נשמרה!'); document.getElementById('shift-staff').value = ''; switchTab('board'); }
+                    else { alert('❌ שגיאה בשמירה.'); }
+                } catch(err) { alert('❌ שרת ה-FastAPI סגור.'); }
+            });
+
+            // 6. שליחת בקשה
+            document.getElementById('btn-submit-req').addEventListener('click', async () => {
+                const payload = {
+                    req_type: document.getElementById('req-type').value,
+                    date: document.getElementById('req-date').value,
+                    reason: document.getElementById('req-reason').value
+                };
+                if(!payload.date) { alert('נא לבחור תאריך.'); return; }
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if(response.ok) { alert('✅ בקשה נשלחה!'); document.getElementById('req-reason').value = ''; }
+                    else { alert('❌ שגיאה.'); }
+                } catch(err) { alert('❌ שרת ה-FastAPI סגור.'); }
+            });
+
+        }); // סוף בלוק טעינה בטוח
+    </script>
+</body>
+</html>
