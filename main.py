@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse # חדש
 from pydantic import BaseModel
 import sqlite3
 import os
@@ -17,10 +18,8 @@ DB_NAME = "soc_data.db"
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
-    # טבלת משמרות
     conn.execute('''CREATE TABLE IF NOT EXISTS shifts 
                  (date TEXT, type TEXT, staff TEXT, hours TEXT, PRIMARY KEY (date, type))''')
-    # טבלת בקשות משופרת עם סטטוס
     conn.execute('''CREATE TABLE IF NOT EXISTS requests 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, date TEXT, req_type TEXT, reason TEXT, status TEXT DEFAULT 'ממתין')''')
     conn.commit()
@@ -28,22 +27,15 @@ def init_db():
 
 init_db()
 
-class Shift(BaseModel):
-    date: str
-    shift_type: str
-    staff: str
-    hours: str
+# --- פונקציה חדשה: מגישה את האתר למי שנכנס לקישור ---
+@app.get("/", response_class=HTMLResponse)
+def get_index():
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>קובץ index.html לא נמצא בשרת</h1>"
 
-class RequestData(BaseModel):
-    name: str
-    req_type: str
-    date: str
-    reason: str
-
-class StatusUpdate(BaseModel):
-    req_id: int
-    status: str
-
+# --- שאר הפונקציות של ה-API (נשארות אותו דבר) ---
 @app.get("/api/shifts")
 def get_shifts():
     conn = sqlite3.connect(DB_NAME)
@@ -55,10 +47,10 @@ def get_shifts():
     return [{"date": r["date"], "shift_type": r["type"], "staff": r["staff"], "hours": r["hours"]} for r in rows]
 
 @app.post("/api/shifts")
-def save_shift(shift: Shift):
+def save_shift(shift: dict): # שיניתי ל-dict כדי להיות גמיש יותר
     conn = sqlite3.connect(DB_NAME)
     conn.execute("INSERT OR REPLACE INTO shifts (date, type, staff, hours) VALUES (?, ?, ?, ?)", 
-                 (shift.date, shift.shift_type, shift.staff, shift.hours))
+                 (shift['date'], shift['shift_type'], shift['staff'], shift['hours']))
     conn.commit()
     conn.close()
     return {"status": "success"}
@@ -74,18 +66,18 @@ def get_requests():
     return [{"id": r["id"], "name": r["name"], "date": r["date"], "req_type": r["req_type"], "reason": r["reason"], "status": r["status"]} for r in rows]
 
 @app.post("/api/requests")
-def save_request(req: RequestData):
+def save_request(req: dict):
     conn = sqlite3.connect(DB_NAME)
     conn.execute("INSERT INTO requests (name, date, req_type, reason) VALUES (?, ?, ?, ?)", 
-                 (req.name, req.date, req.req_type, req.reason))
+                 (req['name'], req['date'], req['req_type'], req['reason']))
     conn.commit()
     conn.close()
     return {"status": "success"}
 
 @app.post("/api/requests/status")
-def update_request_status(data: StatusUpdate):
+def update_request_status(data: dict):
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (data.status, data.req_id))
+    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (data['status'], data['req_id']))
     conn.commit()
     conn.close()
     return {"status": "updated"}
