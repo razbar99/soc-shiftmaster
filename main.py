@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_v8_1.db"
+DB = "soc_v8_5.db"
 
 def init_db():
     conn = sqlite3.connect(DB)
