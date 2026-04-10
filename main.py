@@ -7,11 +7,10 @@ from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_final_v12.db"
+DB = "soc_v12_5.db" # מסד נתונים חדש לגמרי לניקיון
 
 def init_db():
     conn = sqlite3.connect(DB)
-    # טבלת משתמשים כולל הכל: טלפון, תפקיד ומכסות
     conn.execute('''CREATE TABLE IF NOT EXISTS users 
         (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, phone TEXT,
          q_m INTEGER DEFAULT 2, q_e INTEGER DEFAULT 2, q_n INTEGER DEFAULT 1, q_w INTEGER DEFAULT 1)''')
@@ -86,10 +85,9 @@ def auto(d: dict):
 def get_av(date: str):
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
     blks = {r['email']: r['req_type'] for r in conn.execute("SELECT email, req_type FROM requests WHERE date=?", (date,)).fetchall()}
-    cnts = {r['staff']: r['c'] for r in conn.execute("SELECT staff, COUNT(*) as c FROM shifts WHERE date BETWEEN date(?,'-3 days') AND date(?,'+7 days') GROUP BY staff", (date,date)).fetchall()}
+    cnts = {r['staff']: r['c'] for r in conn.execute("SELECT staff, COUNT(*) as c FROM shifts WHERE date BETWEEN date(?,'-3 days') AND date(?,'+3 days') GROUP BY staff", (date,date)).fetchall()}
     users = [dict(u) for u in conn.execute("SELECT name, email, phone FROM users").fetchall()]
-    for u in users:
-        u['is_blocked'] = u['email'] in blks; u['sc'] = cnts.get(u['name'], 0)
+    for u in users: u['is_blocked'] = u['email'] in blks; u['sc'] = cnts.get(u['name'], 0)
     conn.close(); return users
 
 @app.post("/api/requests")
