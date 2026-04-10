@@ -26,11 +26,10 @@ def init_db():
     # טבלת בקשות
     conn.execute('''CREATE TABLE IF NOT EXISTS requests 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, date TEXT, req_type TEXT, reason TEXT, status TEXT DEFAULT 'ממתין')''')
-    # טבלת משתמשים (מייל וסיסמה)
+    # טבלת משתמשים
     conn.execute('''CREATE TABLE IF NOT EXISTS users 
                  (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT)''')
     
-    # הוספת משתמש מנהל ראשוני (רז) אם הטבלה ריקה
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE email='raz@soc.com'")
     if not cur.fetchone():
@@ -42,7 +41,6 @@ def init_db():
 
 init_db()
 
-# דגמים לקבלת נתונים (Schemas)
 class LoginData(BaseModel):
     email: str
     password: str
@@ -53,13 +51,13 @@ class UserData(BaseModel):
     name: str
     role: str
 
-# --- הגשת האתר ---
 @app.get("/", response_class=HTMLResponse)
 def get_index():
     html_file = BASE_DIR / "index.html"
-    return html_file.read_text(encoding="utf-8") if html_file.exists() else "<h1>Error: index.html not found</h1>"
+    if html_file.exists():
+        return html_file.read_text(encoding="utf-8")
+    return "<h1>Error: index.html not found</h1>"
 
-# --- מערכת משתמשים ---
 @app.post("/api/login")
 def login(data: LoginData):
     conn = sqlite3.connect(DB_NAME)
@@ -87,73 +85,4 @@ def add_user(user: UserData):
     conn = sqlite3.connect(DB_NAME)
     try:
         conn.execute("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)",
-                     (user.email, user.password, user.name, user.role))
-        conn.commit()
-        return {"status": "user added"}
-    except:
-        raise HTTPException(status_code=400, detail="משתמש כבר קיים")
-    finally:
-        conn.close()
-
-@app.delete("/api/users/{email}")
-def delete_user(email: str):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM users WHERE email=?", (email,))
-    conn.commit()
-    conn.close()
-    return {"status": "user deleted"}
-
-# --- משמרות ובקשות (הקוד הקיים) ---
-@app.get("/api/shifts")
-def get_shifts():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM shifts")
-    rows = cur.fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-@app.post("/api/shifts")
-def save_shift(shift: dict):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT OR REPLACE INTO shifts (date, type, staff, hours) VALUES (?, ?, ?, ?)", 
-                 (shift['date'], shift['shift_type'], shift['staff'], shift['hours']))
-    conn.commit()
-    conn.close()
-    return {"status": "success"}
-
-@app.get("/api/requests")
-def get_requests():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM requests ORDER BY id DESC")
-    rows = cur.fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-@app.post("/api/requests")
-def save_request(req: dict):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT INTO requests (name, date, req_type, reason) VALUES (?, ?, ?, ?)", 
-                 (req['name'], req['date'], req['req_type'], req['reason']))
-    conn.commit()
-    conn.close()
-    return {"status": "success"}
-
-@app.post("/api/requests/status")
-def update_request_status(data: dict):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (data['status'], data['req_id']))
-    conn.commit()
-    conn.close()
-    return {"status": "updated"}
-
-@app.delete("/api/shifts/{date}/{shift_type}")
-def delete_shift(date: str, shift_type: str):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM shifts WHERE date = ? AND type = ?", (date, shift_type))
-    conn.commit()
-    conn.close()
-    return {"status": "deleted"}
+                     (user.
