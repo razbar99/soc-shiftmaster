@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 import sqlite3
 import os
 from pathlib import Path
@@ -14,39 +15,95 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# מוצא את התיקייה שבה נמצא main.py
 BASE_DIR = Path(__file__).resolve().parent
 DB_NAME = str(BASE_DIR / "soc_data.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
+    # טבלת משמרות
     conn.execute('''CREATE TABLE IF NOT EXISTS shifts 
                  (date TEXT, type TEXT, staff TEXT, hours TEXT, PRIMARY KEY (date, type))''')
+    # טבלת בקשות
     conn.execute('''CREATE TABLE IF NOT EXISTS requests 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, date TEXT, req_type TEXT, reason TEXT, status TEXT DEFAULT 'ממתין')''')
+    # טבלת משתמשים (מייל וסיסמה)
+    conn.execute('''CREATE TABLE IF NOT EXISTS users 
+                 (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT)''')
+    
+    # הוספת משתמש מנהל ראשוני (רז) אם הטבלה ריקה
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE email='raz@soc.com'")
+    if not cur.fetchone():
+        conn.execute("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)",
+                     ("raz@soc.com", "123456", "רז ברהום", "Admin"))
+    
     conn.commit()
     conn.close()
 
 init_db()
 
+# דגמים לקבלת נתונים (Schemas)
+class LoginData(BaseModel):
+    email: str
+    password: str
+
+class UserData(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str
+
+# --- הגשת האתר ---
 @app.get("/", response_class=HTMLResponse)
 def get_index():
-    # חיפוש הקובץ בנתיב אבסולוטי
-    html_path = BASE_DIR / "index.html"
-    
-    if html_path.exists():
-        return html_path.read_text(encoding="utf-8")
-    else:
-        # אבחון אם הקובץ עדיין נעלם
-        files = [f.name for f in BASE_DIR.iterdir()]
-        return f"<h1>Error 404</h1><p>Path: {html_path}</p><p>Files in folder: {files}</p>"
+    html_file = BASE_DIR / "index.html"
+    return html_file.read_text(encoding="utf-8") if html_file.exists() else "<h1>Error: index.html not found</h1>"
 
-# API Endpoint לדוגמה כדי לבדוק שהשרת חי
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "db": DB_NAME}
+# --- מערכת משתמשים ---
+@app.post("/api/login")
+def login(data: LoginData):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE email=? AND password=?", (data.email, data.password))
+    user = cur.fetchone()
+    conn.close()
+    if user:
+        return {"status": "success", "user": {"name": user["name"], "role": user["role"], "email": user["email"]}}
+    raise HTTPException(status_code=401, detail="פרטים שגויים")
 
-# פונקציות ה-API של המערכת (השארתי רק את אלו לקיצור, תוודא שהן קיימות אצלך)
+@app.get("/api/users")
+def get_users():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT email, name, role FROM users")
+    users = cur.fetchall()
+    conn.close()
+    return [dict(u) for u in users]
+
+@app.post("/api/users")
+def add_user(user: UserData):
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        conn.execute("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)",
+                     (user.email, user.password, user.name, user.role))
+        conn.commit()
+        return {"status": "user added"}
+    except:
+        raise HTTPException(status_code=400, detail="משתמש כבר קיים")
+    finally:
+        conn.close()
+
+@app.delete("/api/users/{email}")
+def delete_user(email: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("DELETE FROM users WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+    return {"status": "user deleted"}
+
+# --- משמרות ובקשות (הקוד הקיים) ---
 @app.get("/api/shifts")
 def get_shifts():
     conn = sqlite3.connect(DB_NAME)
@@ -55,6 +112,48 @@ def get_shifts():
     cur.execute("SELECT * FROM shifts")
     rows = cur.fetchall()
     conn.close()
-    return [{"date": r["date"], "shift_type": r["type"], "staff": r["staff"], "hours": r["hours"]} for r in rows]
+    return [dict(r) for r in rows]
 
-# ... (שאר הפונקציות: save_shift, get_requests, save_request וכו')
+@app.post("/api/shifts")
+def save_shift(shift: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT OR REPLACE INTO shifts (date, type, staff, hours) VALUES (?, ?, ?, ?)", 
+                 (shift['date'], shift['shift_type'], shift['staff'], shift['hours']))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/requests")
+def get_requests():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM requests ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/requests")
+def save_request(req: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT INTO requests (name, date, req_type, reason) VALUES (?, ?, ?, ?)", 
+                 (req['name'], req['date'], req['req_type'], req['reason']))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.post("/api/requests/status")
+def update_request_status(data: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (data['status'], data['req_id']))
+    conn.commit()
+    conn.close()
+    return {"status": "updated"}
+
+@app.delete("/api/shifts/{date}/{shift_type}")
+def delete_shift(date: str, shift_type: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("DELETE FROM shifts WHERE date = ? AND type = ?", (date, shift_type))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted"}
