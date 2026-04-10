@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
 import sqlite3
 import os
+from pathlib import Path
 
 app = FastAPI()
 
@@ -14,8 +14,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_NAME = "soc_data.db"
-base_path = os.path.dirname(os.path.abspath(__file__))
+# הגדרת נתיבים חכמה
+BASE_DIR = Path(__file__).resolve().parent
+DB_NAME = str(BASE_DIR / "soc_data.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -28,16 +29,15 @@ def init_db():
 
 init_db()
 
-# הצגת דף הבית (האתר)
 @app.get("/", response_class=HTMLResponse)
 def get_index():
-    html_path = os.path.join(base_path, "index.html")
-    if os.path.exists(html_path):
-        with open(html_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return "<h1>Error: index.html not found on server</h1>"
+    html_file = BASE_DIR / "index.html"
+    if html_file.exists():
+        return html_file.read_text(encoding="utf-8")
+    else:
+        # אם הוא עדיין לא מוצא, הוא יגיד לנו איפה הוא חיפש
+        return f"<h1>Error: index.html not found</h1><p>Searched in: {html_file}</p>"
 
-# פונקציות ה-API
 @app.get("/api/shifts")
 def get_shifts():
     conn = sqlite3.connect(DB_NAME)
@@ -87,4 +87,7 @@ def update_request_status(data: dict):
 @app.delete("/api/shifts/{date}/{shift_type}")
 def delete_shift(date: str, shift_type: str):
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM shifts WHERE date = ? AND type = ?", (date
+    conn.execute("DELETE FROM shifts WHERE date = ? AND type = ?", (date, shift_type))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted"}
