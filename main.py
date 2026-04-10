@@ -1,23 +1,23 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-import sqlite3, random, io, csv
+import sqlite3, random
 from pathlib import Path
 from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_v13.db"
+DB = "soc_v19.db"
 
 def init_db():
     conn = sqlite3.connect(DB)
-    conn.execute('''CREATE TABLE IF NOT EXISTS users 
-        (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, phone TEXT,
-         q_m INTEGER DEFAULT 2, q_e INTEGER DEFAULT 2, q_n INTEGER DEFAULT 1, q_w INTEGER DEFAULT 1)''')
-    conn.execute('CREATE TABLE IF NOT EXISTS shifts (date TEXT, type TEXT, staff TEXT, is_draft INTEGER DEFAULT 1, PRIMARY KEY (date, type))')
-    conn.execute('CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, date TEXT, req_type TEXT, reason TEXT)')
+    conn.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, phone TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS shifts (date TEXT, type TEXT, staff TEXT, is_draft INTEGER DEFAULT 1, PRIMARY KEY (date, type))''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, date TEXT, req_type TEXT, reason TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS swaps (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, shift_type TEXT, from_user TEXT, to_user TEXT, status TEXT DEFAULT 'OPEN')''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS vacations (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, name TEXT, start_date TEXT, end_date TEXT, vac_type TEXT, status TEXT DEFAULT 'PENDING')''')
     if not conn.execute("SELECT * FROM users WHERE email='raz@soc.com'").fetchone():
-        conn.execute("INSERT INTO users VALUES ('raz@soc.com','123456','רז ברהום','Admin','0500000000',0,0,0,0)")
+        conn.execute("INSERT INTO users VALUES ('raz@soc.com','123456','רז ברהום','Admin','0500000000')")
     conn.commit(); conn.close()
 
 init_db()
@@ -33,6 +33,54 @@ def login(d: dict):
     if u: return {"status": "success", "user": dict(u)}
     raise HTTPException(401)
 
+@app.post("/api/shifts/save")
+def save_s(s: dict):
+    conn = sqlite3.connect(DB)
+    # בדיקת כפילות: האם העובד כבר משובץ ביום הזה?
+    existing = conn.execute("SELECT type FROM shifts WHERE date=? AND staff=? AND type != ?", (s['date'], s['staff'], s['type'])).fetchone()
+    if existing:
+        conn.close()
+        return {"status": "error", "message": f"העובד כבר משובץ למשמרת {existing[0]} ביום זה"}
+    
+    conn.execute("INSERT OR REPLACE INTO shifts VALUES (?,?,?,1)", (s['date'], s['type'], s['staff']))
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.post("/api/shifts/auto-assign")
+def auto(d: dict):
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    users = [dict(u) for u in conn.execute("SELECT * FROM users WHERE role != 'Admin'").fetchall()]
+    start_dt = datetime.strptime(d['start'], "%Y-%m-%d")
+    conn.execute("DELETE FROM shifts WHERE is_draft=1 AND date BETWEEN ? AND ?", (d['start'], d['end']))
+    
+    assigned_today = {}
+    last_night_shift = {}
+
+    for i in range(7):
+        dt = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
+        assigned_today[dt] = []
+        blks = {b['email']: b['req_type'] for b in conn.execute("SELECT email, req_type FROM requests WHERE date=?", (dt,)).fetchall()}
+        
+        for t in ['בוקר', 'ערב', 'לילה']:
+            avail = [u for u in users if f"חסום: {t}" not in blks.get(u['email'], "") 
+                     and u['name'] not in assigned_today[dt]
+                     and (t != 'בוקר' or last_night_shift.get(u['name']) != True)]
+            
+            if avail:
+                c = random.choice(avail)
+                conn.execute("INSERT INTO shifts VALUES (?,?,?,1)", (dt, t, c['name']))
+                assigned_today[dt].append(c['name'])
+                if t == 'לילה': last_night_shift[c['name']] = True
+                else: last_night_shift[c['name']] = False
+    
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.get("/api/shifts")
+def get_s():
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    res = {"shifts": [dict(r) for r in conn.execute("SELECT * FROM shifts").fetchall()],
+           "swaps": [dict(r) for r in conn.execute("SELECT * FROM swaps WHERE status IN ('OPEN', 'WAITING_APPROVAL')").fetchall()]}
+    conn.close(); return res
+
 @app.get("/api/users")
 def get_u():
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
@@ -41,53 +89,55 @@ def get_u():
 
 @app.post("/api/users/save")
 def save_u(u: dict):
-    conn = sqlite3.connect(DB)
-    conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", (u['email'], u['password'], u['name'], u['role'], u.get('phone',''), 2, 2, 1, 1))
-    conn.commit(); conn.close(); return {"status": "ok"}
+    conn = sqlite3.connect(DB); conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?)", (u['email'], u['password'], u['name'], u['role'], u.get('phone',''))); conn.commit(); conn.close(); return {"status": "ok"}
 
 @app.post("/api/users/delete")
 def del_u(d: dict):
     conn = sqlite3.connect(DB); conn.execute("DELETE FROM users WHERE email=?", (d['email'],)); conn.commit(); conn.close(); return {"status": "ok"}
 
-@app.get("/api/shifts")
-def get_s():
+@app.post("/api/vacations/request")
+def req_v(d: dict):
+    conn = sqlite3.connect(DB); conn.execute("INSERT INTO vacations (email, name, start_date, end_date, vac_type) VALUES (?,?,?,?,?)", (d['email'], d['name'], d['start'], d['end'], d['type'])); conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.get("/api/admin/vacations")
+def get_v():
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
-    res = [dict(r) for r in conn.execute("SELECT * FROM shifts").fetchall()]
-    conn.close(); return res
+    res = conn.execute("SELECT * FROM vacations WHERE status='PENDING'").fetchall()
+    conn.close(); return [dict(r) for r in res]
 
-@app.post("/api/shifts/save")
-def save_s(s: dict):
-    conn = sqlite3.connect(DB); conn.execute("INSERT OR REPLACE INTO shifts VALUES (?,?,?,1)", (s['date'], s['type'], s['staff'])); conn.commit(); conn.close(); return {"status": "ok"}
-
-@app.post("/api/shifts/publish")
-def pub_s(d: dict):
-    conn = sqlite3.connect(DB); conn.execute("UPDATE shifts SET is_draft=0 WHERE date BETWEEN ? AND ?", (d['start'], d['end'])); conn.commit(); conn.close(); return {"status": "ok"}
-
-@app.post("/api/shifts/auto-assign")
-def auto(d: dict):
+@app.get("/api/admin/approved-vacations")
+def get_av_v():
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
-    users = [dict(u) for u in conn.execute("SELECT * FROM users WHERE role != 'Admin'").fetchall()]
-    start_dt = datetime.strptime(d['start'], "%Y-%m-%d")
-    conn.execute("DELETE FROM shifts WHERE is_draft=1 AND date BETWEEN ? AND ?", (d['start'], d['end']))
-    last = {}
-    for i in range(7):
-        dt = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
-        blks = {b['email']: b['req_type'] for b in conn.execute("SELECT email, req_type FROM requests WHERE date=?", (dt,)).fetchall()}
-        for t in ['בוקר', 'ערב', 'לילה']:
-            avail = [u for u in users if f"חסום: {t}" not in blks.get(u['email'], "") and last.get(u['name']) != 'לילה']
-            if avail:
-                c = random.choice(avail); conn.execute("INSERT INTO shifts VALUES (?,?,?,1)", (dt, t, c['name'])); last[c['name']] = t
+    res = conn.execute("SELECT * FROM vacations WHERE status='APPROVED' ORDER BY start_date DESC").fetchall()
+    conn.close(); return [dict(r) for r in res]
+
+@app.post("/api/admin/vacation-action")
+def v_act(d: dict):
+    conn = sqlite3.connect(DB)
+    if d['action'] == 'approve':
+        conn.execute("UPDATE vacations SET status='APPROVED' WHERE id=?", (d['id'],))
+        s, e = datetime.strptime(d['start'], "%Y-%m-%d"), datetime.strptime(d['end'], "%Y-%m-%d")
+        while s <= e:
+            for t in ['בוקר', 'ערב', 'לילה']:
+                conn.execute("INSERT OR IGNORE INTO requests (name, email, date, req_type, reason) VALUES (?,?,?,?,?)", (d['name'], d['email'], s.strftime("%Y-%m-%d"), f"חסום: {t}", "חופשה מאושרת"))
+            s += timedelta(days=1)
+    else: conn.execute("UPDATE vacations SET status='REJECTED' WHERE id=?", (d['id'],))
     conn.commit(); conn.close(); return {"status": "ok"}
 
-@app.get("/api/admin/availability/{date}")
-def get_av(date: str):
+@app.get("/api/admin/availability/{date}/{shift_type}")
+def get_av(date: str, shift_type: str):
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
-    blks = {r['email']: r['req_type'] for r in conn.execute("SELECT email, req_type FROM requests WHERE date=?", (date,)).fetchall()}
-    cnts = {r['staff']: r['c'] for r in conn.execute("SELECT staff, COUNT(*) as c FROM shifts WHERE date BETWEEN date(?,'-3 days') AND date(?,'+3 days') GROUP BY staff", (date,date)).fetchall()}
+    blks = [r['email'] for r in conn.execute("SELECT email FROM requests WHERE date=? AND req_type=?", (date, f"חסום: {shift_type}")).fetchall()]
+    # בדיקת מי כבר עובד היום
+    working = [r['staff'] for r in conn.execute("SELECT staff FROM shifts WHERE date=?", (date,)).fetchall()]
     users = [dict(u) for u in conn.execute("SELECT name, email, phone FROM users").fetchall()]
-    for u in users: u['is_blocked'] = u['email'] in blks; u['sc'] = cnts.get(u['name'], 0)
+    for u in users: u['is_blocked'] = u['email'] in blks; u['working'] = u['name'] in working
     conn.close(); return users
 
 @app.post("/api/requests")
 def add_r(r: dict):
     conn = sqlite3.connect(DB); conn.execute("INSERT INTO requests (name,email,date,req_type,reason) VALUES (?,?,?,?,?)", (r['name'],r['email'],r['date'],r['req_type'],r['reason'])); conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.post("/api/shifts/publish")
+def pub_s(d: dict):
+    conn = sqlite3.connect(DB); conn.execute("UPDATE shifts SET is_draft=0 WHERE date BETWEEN ? AND ?", (d['start'], d['end'])); conn.commit(); conn.close(); return {"status": "ok"}
