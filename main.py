@@ -15,11 +15,9 @@ def init():
     conn.execute('CREATE TABLE IF NOT EXISTS shifts (date TEXT, type TEXT, staff TEXT, is_draft INTEGER DEFAULT 1, PRIMARY KEY (date, type))')
     conn.execute('CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, date TEXT, req_type TEXT, reason TEXT, status TEXT DEFAULT "ממתין")')
     conn.execute('CREATE TABLE IF NOT EXISTS handovers (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, author TEXT, content TEXT, timestamp TEXT)')
-    conn.execute('CREATE TABLE IF NOT EXISTS swaps (id INTEGER PRIMARY KEY AUTOINCREMENT, requester_email TEXT, target_email TEXT, date TEXT, shift_type TEXT, status TEXT DEFAULT "ממתין")')
     if not conn.execute("SELECT * FROM users WHERE email='raz@soc.com'").fetchone():
         conn.execute("INSERT INTO users VALUES (?,?,?,?,?)", ("raz@soc.com","123456","רז ברהום","Admin",99))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
 init()
 
@@ -52,17 +50,15 @@ def pub_s(d: dict):
     conn.execute("UPDATE shifts SET is_draft=0 WHERE date BETWEEN ? AND ?", (d['start'], d['end']))
     conn.commit(); conn.close(); return {"status": "ok"}
 
-@app.get("/api/users")
-def get_u():
+@app.get("/api/admin/availability/{date}")
+def get_avail(date: str):
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
-    res = [dict(r) for r in conn.execute("SELECT * FROM users").fetchall()]
-    conn.close(); return res
-
-@app.post("/api/users")
-def add_u(u: dict):
-    conn = sqlite3.connect(DB)
-    conn.execute("INSERT INTO users VALUES (?,?,?,?,2)", (u['email'], u['password'], u['name'], u['role']))
-    conn.commit(); conn.close(); return {"status": "ok"}
+    blocks = {r['email']: r['reason'] for r in conn.execute("SELECT email, reason FROM requests WHERE date=? AND status='אושר'", (date,)).fetchall()}
+    users = [dict(u) for u in conn.execute("SELECT name, email FROM users").fetchall()]
+    for u in users:
+        u['is_blocked'] = u['email'] in blocks
+        u['reason'] = blocks.get(u['email'], "")
+    conn.close(); return users
 
 @app.post("/api/requests")
 def add_r(r: dict):
@@ -75,6 +71,12 @@ def get_r():
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
     res = [dict(r) for r in conn.execute("SELECT * FROM requests").fetchall()]
     conn.close(); return res
+
+@app.post("/api/requests/status")
+def upd_r(d: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("UPDATE requests SET status=? WHERE id=?", (d['status'], d['req_id']))
+    conn.commit(); conn.close(); return {"status": "ok"}
 
 @app.get("/api/handovers")
 def get_h():
