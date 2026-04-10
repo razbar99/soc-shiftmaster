@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import sqlite3, csv, io, random
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_v8_5.db"
+DB = "soc_v9_1.db"
 
 def init_db():
     conn = sqlite3.connect(DB)
@@ -22,8 +22,10 @@ def init_db():
 
 init_db()
 
-@app.get("/", response_class=HTMLResponse)
-def home(): return Path("index.html").read_text(encoding="utf-8")
+# תיקון השגיאה 405 Method Not Allowed
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+def home(): 
+    return Path("index.html").read_text(encoding="utf-8")
 
 @app.post("/api/login")
 def login(d: dict):
