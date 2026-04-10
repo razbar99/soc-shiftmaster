@@ -21,176 +21,81 @@
             <div class="space-y-4">
                 <input type="email" id="l-email" placeholder="אימייל" class="w-full p-3 border rounded-lg bg-slate-50 outline-none text-right">
                 <input type="password" id="l-pass" placeholder="סיסמה" class="w-full p-3 border rounded-lg bg-slate-50 outline-none text-right">
-                <button onclick="login()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">כניסה</button>
+                <button onclick="login()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition text-lg">כניסה למערכת</button>
             </div>
         </div>
     </div>
 
     <div id="app" style="display:none" class="flex flex-col h-full overflow-hidden">
-        <nav class="bg-slate-900 text-white p-4 flex justify-between items-center px-8">
-            <div class="text-xl font-bold"><i class="fa-solid fa-shield-halved text-blue-400"></i> SOC MASTER</div>
+        <nav class="bg-slate-900 text-white p-4 flex justify-between items-center px-8 shadow-lg">
+            <div class="text-xl font-bold italic"><i class="fa-solid fa-shield-halved text-blue-400"></i> SOC MASTER</div>
             <div class="flex items-center gap-4">
-                <span id="display-name" class="font-medium"></span>
-                <button onclick="location.reload()" class="text-slate-400 hover:text-white text-sm">התנתק</button>
+                <span id="display-name" class="font-medium bg-slate-800 px-3 py-1 rounded-lg"></span>
+                <button onclick="location.reload()" class="text-slate-400 hover:text-white text-sm border border-slate-700 px-2 py-1 rounded">התנתק</button>
             </div>
         </nav>
 
         <div class="flex-1 overflow-y-auto p-4">
-            <div class="max-w-7xl mx-auto mb-6 flex gap-4 border-b border-slate-200">
-                <button onclick="showTab('board')" id="t-board" class="tab-active px-4 py-2">לוח משמרות</button>
-                <button onclick="showTab('admin')" id="t-admin" class="px-4 py-2 hidden admin-only text-blue-700">ניהול</button>
-                <button onclick="showTab('staff')" id="t-staff" class="px-4 py-2 hidden admin-only text-green-700">צוות</button>
-                <button onclick="showTab('personal')" id="t-personal" class="px-4 py-2">בקשה</button>
+            <div class="max-w-7xl mx-auto mb-6 flex gap-4 border-b border-slate-200 overflow-x-auto">
+                <button onclick="showTab('board')" id="t-board" class="tab-active px-4 py-2 whitespace-nowrap">לוח משמרות</button>
+                <button onclick="showTab('admin')" id="t-admin" class="px-4 py-2 hidden admin-only text-blue-700 whitespace-nowrap font-bold italic border-blue-200">ניהול ושיבוץ</button>
+                <button onclick="showTab('staff')" id="t-staff" class="px-4 py-2 hidden admin-only text-green-700 whitespace-nowrap font-bold italic">ניהול צוות</button>
+                <button onclick="showTab('personal')" id="t-personal" class="px-4 py-2 whitespace-nowrap">הגשת בקשה</button>
             </div>
 
             <div id="v-board" class="max-w-7xl mx-auto">
-                <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
-                    <button onclick="moveWeek(-7)" class="p-2 hover:bg-slate-100 rounded-full"><i class="fa-solid fa-chevron-right"></i></button>
-                    <h2 id="week-label" class="text-xl font-bold"></h2>
-                    <button onclick="moveWeek(7)" class="p-2 hover:bg-slate-100 rounded-full"><i class="fa-solid fa-chevron-left"></i></button>
+                <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <button onclick="moveWeek(-7)" class="p-2 hover:bg-slate-100 rounded-full w-10 h-10"><i class="fa-solid fa-chevron-right"></i></button>
+                    <h2 id="week-label" class="text-xl font-bold text-slate-700"></h2>
+                    <button onclick="moveWeek(7)" class="p-2 hover:bg-slate-100 rounded-full w-10 h-10"><i class="fa-solid fa-chevron-left"></i></button>
                 </div>
                 <div id="grid" class="grid grid-cols-1 md:grid-cols-7 gap-4"></div>
             </div>
 
             <div id="v-admin" class="max-w-4xl mx-auto hidden space-y-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm">
-                    <h3 class="font-bold mb-4 italic">שיבוץ משמרת</h3>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold mb-4 text-blue-800"><i class="fa-solid fa-plus-circle ml-2"></i>שיבוץ משמרת חדשה</h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <input type="date" id="s-date" class="p-2 border rounded">
-                        <select id="s-type" class="p-2 border rounded"><option value="בוקר">בוקר</option><option value="ערב">ערב</option><option value="לילה">לילה</option></select>
-                        <select id="s-staff-list" class="p-2 border rounded"></select>
-                        <button onclick="saveShift()" class="bg-blue-600 text-white rounded font-bold">שמור</button>
+                        <input type="date" id="s-date" class="p-2 border rounded-lg bg-slate-50 shadow-sm outline-none focus:ring-2 focus:ring-blue-400">
+                        <select id="s-type" class="p-2 border rounded-lg bg-slate-50 shadow-sm outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="בוקר">בוקר (07-15)</option>
+                            <option value="ערב">ערב (15-23)</option>
+                            <option value="לילה">לילה (23-07)</option>
+                        </select>
+                        <select id="s-staff-list" class="p-2 border rounded-lg bg-slate-50 shadow-sm outline-none focus:ring-2 focus:ring-blue-400"></select>
+                        <button onclick="saveShift()" class="bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 transition">שמור שיבוץ</button>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm"><h3 class="font-bold mb-4">בקשות עובדים</h3><div id="req-list" class="space-y-3"></div></div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold mb-4 border-b pb-2"><i class="fa-solid fa-clock-rotate-left ml-2"></i>בקשות ממתינות לאישור</h3>
+                    <div id="req-list" class="space-y-3"></div>
+                </div>
             </div>
 
             <div id="v-staff" class="max-w-4xl mx-auto hidden space-y-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-green-500">
-                    <h3 class="font-bold mb-4 italic text-green-700">הוספת עובד SOC חדש</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <input type="text" id="n-name" placeholder="שם מלא" class="p-2 border rounded">
-                        <input type="email" id="n-email" placeholder="אימייל" class="p-2 border rounded text-left">
-                        <input type="text" id="n-pass" placeholder="סיסמה" class="p-2 border rounded text-left">
-                        <button onclick="addUser()" class="bg-green-600 text-white rounded font-bold">הוסף עובד</button>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-green-500 shadow-md">
+                    <h3 class="font-bold mb-4 italic text-green-700 text-lg">הוספת עובד SOC חדש</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">שם מלא</label>
+                            <input type="text" id="n-name" placeholder="למשל: ליאור שם טוב" class="p-2 border rounded w-full">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">אימייל</label>
+                            <input type="email" id="n-email" placeholder="example@soc.com" class="p-2 border rounded w-full text-left">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">סיסמה</label>
+                            <input type="text" id="n-pass" placeholder="סיסמה ראשונית" class="p-2 border rounded w-full text-left">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs text-slate-500">תפקיד במערכת</label>
+                            <select id="n-role" class="p-2 border rounded w-full bg-slate-50 font-bold">
+                                <option value="User">עובד SOC (רגיל)</option>
+                                <option value="Admin">מנהל (הרשאות מלאות)</option>
+                            </select>
+                        </div>
+                        <button onclick="addUser()" class="bg-green-600 text-white rounded-lg font-bold p-2 h-10 hover:bg-green-700 transition shadow-md">הוסף למערכת</button>
                     </div>
                 </div>
-                <div id="u-list-view" class="space-y-2"></div>
-            </div>
-
-            <div id="v-personal" class="max-w-xl mx-auto hidden bg-white p-8 rounded-2xl shadow-sm">
-                <h3 class="text-xl font-bold mb-6 italic text-indigo-700">הגשת בקשה חדשה</h3>
-                <div class="space-y-4">
-                    <select id="p-type" class="w-full p-3 border rounded-lg bg-slate-50"><option value="חופשה">חופשה</option><option value="אילוץ">אילוץ</option></select>
-                    <input type="date" id="p-date" class="w-full p-3 border rounded-lg bg-slate-50">
-                    <textarea id="p-reason" placeholder="פירוט..." class="w-full p-3 border rounded-lg h-32 bg-slate-50"></textarea>
-                    <button onclick="sendRequest()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold">שלח</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const API_URL = window.location.origin;
-        let userData = null;
-        let currentSun = getSunday(new Date());
-
-        function getSunday(d) { let date = new Date(d); date.setHours(0,0,0,0); return new Date(date.setDate(date.getDate() - date.getDay())); }
-        function moveWeek(d) { currentSun.setDate(currentSun.getDate() + d); renderBoard(); }
-
-        async function login() {
-            const email = document.getElementById('l-email').value;
-            const pass = document.getElementById('l-pass').value;
-            const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: pass})});
-            if(res.ok) {
-                const d = await res.json(); userData = d.user;
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('app').style.display = 'flex';
-                document.getElementById('display-name').innerText = userData.name;
-                if(userData.role === 'Admin') document.querySelectorAll('.admin-only').forEach(e => e.classList.remove('hidden'));
-                showTab('board');
-            } else alert("פרטים שגויים");
-        }
-
-        function showTab(t) {
-            ['board','admin','staff','personal'].forEach(v => { document.getElementById('v-'+v).classList.add('hidden'); document.getElementById('t-'+v).classList.remove('tab-active'); });
-            document.getElementById('v-'+t).classList.remove('hidden');
-            document.getElementById('t-'+t).classList.add('tab-active');
-            if(t==='board') renderBoard();
-            if(t==='admin') { loadRequests(); loadStaffSelect(); }
-            if(t==='staff') loadStaffList();
-        }
-
-        async function loadStaffSelect() {
-            const res = await fetch(`${API_URL}/api/users`); const users = await res.json();
-            document.getElementById('s-staff-list').innerHTML = users.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
-        }
-
-        async function loadStaffList() {
-            const res = await fetch(`${API_URL}/api/users`); const users = await res.json();
-            document.getElementById('u-list-view').innerHTML = users.map(u => `
-                <div class="flex justify-between items-center p-3 bg-white border rounded-xl shadow-sm">
-                    <div><strong>${u.name}</strong> (${u.email})</div>
-                    ${u.email !== 'raz@soc.com' ? `<button onclick="deleteUser('${u.email}')" class="text-red-500 font-bold">הסר</button>` : ''}
-                </div>
-            `).join('');
-        }
-
-        async function addUser() {
-            const payload = { name: document.getElementById('n-name').value, email: document.getElementById('n-email').value, password: document.getElementById('n-pass').value, role: 'User' };
-            const res = await fetch(`${API_URL}/api/users`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
-            if(res.ok) { alert("נוסף!"); loadStaffList(); }
-        }
-
-        async function deleteUser(email) {
-            if(confirm(`להסיר את ${email}?`)) {
-                const res = await fetch(`${API_URL}/api/users/delete`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email})});
-                if(res.ok) { alert("הוסר!"); loadStaffList(); }
-            }
-        }
-
-        async function renderBoard() {
-            const end = new Date(currentSun); end.setDate(end.getDate() + 6);
-            document.getElementById('week-label').innerText = `${currentSun.getDate()}/${currentSun.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}`;
-            const grid = document.getElementById('grid'); grid.innerHTML = 'טוען...';
-            const res = await fetch(`${API_URL}/api/shifts`); const data = await res.json();
-            grid.innerHTML = '';
-            for(let i=0; i<7; i++) {
-                let d = new Date(currentSun); d.setDate(d.getDate() + i); let dStr = d.toISOString().split('T')[0];
-                let dayHtml = `<div class="bg-white rounded-xl shadow-sm flex flex-col border min-h-[250px]"><div class="bg-slate-800 text-white text-center p-2 font-bold text-xs">${d.getDate()}/${d.getMonth()+1}</div><div class="p-2 space-y-2">`;
-                data.filter(s => s.date === dStr).forEach(s => {
-                    let isMine = s.staff.includes(userData.name) ? 'my-shift' : '';
-                    dayHtml += `<div class="p-2 rounded-lg border text-xs shadow-sm bg-slate-50 ${isMine}"><strong>${s.shift_type}</strong><br>${s.staff}</div>`;
-                });
-                grid.innerHTML += dayHtml + `</div></div>`;
-            }
-        }
-
-        async function saveShift() {
-            const payload = { date: document.getElementById('s-date').value, shift_type: document.getElementById('s-type').value, staff: document.getElementById('s-staff-list').value, hours: '00-00' };
-            await fetch(`${API_URL}/api/shifts`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
-            alert('נשמר!'); renderBoard();
-        }
-
-        async function loadRequests() {
-            const res = await fetch(`${API_URL}/api/requests`); const data = await res.json();
-            document.getElementById('req-list').innerHTML = data.filter(r => r.status === 'ממתין').map(r => `
-                <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-xl">
-                    <div><strong>${r.name}</strong> (${r.date})</div>
-                    <div class="flex gap-2"><button onclick="updateReq(${r.id},'אושר')" class="bg-green-500 text-white px-2 rounded">V</button><button onclick="updateReq(${r.id},'נדחה')" class="bg-red-500 text-white px-2 rounded">X</button></div>
-                </div>`).join('');
-        }
-
-        async function updateReq(id, status) {
-            await fetch(`${API_URL}/api/requests/status`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({req_id: id, status: status})});
-            loadRequests();
-        }
-
-        async function sendRequest() {
-            const payload = { name: userData.name, req_type: document.getElementById('p-type').value, date: document.getElementById('p-date').value, reason: document.getElementById('p-reason').value };
-            await fetch(`${API_URL}/api/requests`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
-            alert('נשלח!');
-        }
-    </script>
-</body>
-</html>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
