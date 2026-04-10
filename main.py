@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import sqlite3, random, io, csv
@@ -7,18 +7,21 @@ from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_v11_1.db"
+DB = "soc_final_v12.db"
 
-def init():
+def init_db():
     conn = sqlite3.connect(DB)
-    conn.execute('CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, phone TEXT, q_m INTEGER DEFAULT 2, q_e INTEGER DEFAULT 2, q_n INTEGER DEFAULT 1, q_w INTEGER DEFAULT 1)')
+    # טבלת משתמשים כולל הכל: טלפון, תפקיד ומכסות
+    conn.execute('''CREATE TABLE IF NOT EXISTS users 
+        (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, phone TEXT,
+         q_m INTEGER DEFAULT 2, q_e INTEGER DEFAULT 2, q_n INTEGER DEFAULT 1, q_w INTEGER DEFAULT 1)''')
     conn.execute('CREATE TABLE IF NOT EXISTS shifts (date TEXT, type TEXT, staff TEXT, is_draft INTEGER DEFAULT 1, PRIMARY KEY (date, type))')
     conn.execute('CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, date TEXT, req_type TEXT, reason TEXT)')
     if not conn.execute("SELECT * FROM users WHERE email='raz@soc.com'").fetchone():
         conn.execute("INSERT INTO users VALUES ('raz@soc.com','123456','רז ברהום','Admin','0500000000',0,0,0,0)")
     conn.commit(); conn.close()
 
-init()
+init_db()
 
 @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def home(): return Path("index.html").read_text(encoding="utf-8")
@@ -40,7 +43,9 @@ def get_u():
 @app.post("/api/users/save")
 def save_u(u: dict):
     conn = sqlite3.connect(DB)
-    conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", (u['email'], u['password'], u['name'], u['role'], u.get('phone',''), u.get('q_m',2), u.get('q_e',2), u.get('q_n',1), u.get('q_w',1)))
+    conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", 
+                 (u['email'], u['password'], u['name'], u['role'], u.get('phone',''), 
+                  u.get('q_m',2), u.get('q_e',2), u.get('q_n',1), u.get('q_w',1)))
     conn.commit(); conn.close(); return {"status": "ok"}
 
 @app.post("/api/users/delete")
@@ -81,7 +86,7 @@ def auto(d: dict):
 def get_av(date: str):
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
     blks = {r['email']: r['req_type'] for r in conn.execute("SELECT email, req_type FROM requests WHERE date=?", (date,)).fetchall()}
-    cnts = {r['staff']: r['c'] for r in conn.execute("SELECT staff, COUNT(*) as c FROM shifts WHERE date BETWEEN date(?,'-3 days') AND date(?,'+3 days') GROUP BY staff", (date,date)).fetchall()}
+    cnts = {r['staff']: r['c'] for r in conn.execute("SELECT staff, COUNT(*) as c FROM shifts WHERE date BETWEEN date(?,'-3 days') AND date(?,'+7 days') GROUP BY staff", (date,date)).fetchall()}
     users = [dict(u) for u in conn.execute("SELECT name, email, phone FROM users").fetchall()]
     for u in users:
         u['is_blocked'] = u['email'] in blks; u['sc'] = cnts.get(u['name'], 0)
