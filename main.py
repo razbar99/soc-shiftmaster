@@ -85,4 +85,75 @@ def add_user(user: UserData):
     conn = sqlite3.connect(DB_NAME)
     try:
         conn.execute("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, ?)",
-                     (user.
+                     (user.email, user.password, user.name, user.role))
+        conn.commit()
+        return {"status": "user added"}
+    except:
+        return {"status": "error", "message": "משתמש כבר קיים"}
+    finally:
+        conn.close()
+
+@app.post("/api/users/delete")
+def delete_user(data: dict):
+    email = data.get("email")
+    if email == "raz@soc.com":
+        return {"status": "error", "message": "לא ניתן למחוק מנהל על"}
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("DELETE FROM users WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+    return {"status": "user deleted"}
+
+@app.get("/api/shifts")
+def get_shifts():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM shifts")
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/shifts")
+def save_shift(shift: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT OR REPLACE INTO shifts (date, type, staff, hours) VALUES (?, ?, ?, ?)", 
+                 (shift['date'], shift['shift_type'], shift['staff'], shift['hours']))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/requests")
+def get_requests():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM requests ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/requests")
+def save_request(req: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT INTO requests (name, date, req_type, reason) VALUES (?, ?, ?, ?)", 
+                 (req['name'], req['date'], req['req_type'], req['reason']))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.post("/api/requests/status")
+def update_request_status(data: dict):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("UPDATE requests SET status = ? WHERE id = ?", (data['status'], data['req_id']))
+    conn.commit()
+    conn.close()
+    return {"status": "updated"}
+
+@app.delete("/api/shifts/{date}/{shift_type}")
+def delete_shift(date: str, shift_type: str):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("DELETE FROM shifts WHERE date = ? AND type = ?", (date, shift_type))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted"}
