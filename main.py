@@ -1,89 +1,98 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
-import sqlite3
-import csv
-import io
+from fastapi.responses import HTMLResponse
+import sqlite3, csv, io, os
 from pathlib import Path
 from datetime import datetime
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+DB = str(Path(__file__).resolve().parent / "soc_data.db")
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_NAME = str(BASE_DIR / "soc_data.db")
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
+def init():
+    conn = sqlite3.connect(DB)
     conn.execute('CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT, name TEXT, role TEXT, max_blocks INTEGER DEFAULT 2)')
     conn.execute('CREATE TABLE IF NOT EXISTS shifts (date TEXT, type TEXT, staff TEXT, is_draft INTEGER DEFAULT 1, PRIMARY KEY (date, type))')
     conn.execute('CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, date TEXT, req_type TEXT, reason TEXT, status TEXT DEFAULT "ממתין")')
     conn.execute('CREATE TABLE IF NOT EXISTS handovers (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, author TEXT, content TEXT, timestamp TEXT)')
-    # טבלת החלפות (Swaps)
-    conn.execute('CREATE TABLE IF NOT EXISTS swaps (id INTEGER PRIMARY KEY AUTOINCREMENT, requester_email TEXT, target_email TEXT, date TEXT, shift_type TEXT, status TEXT DEFAULT "ממתין_לאישור_עובד")')
+    conn.execute('CREATE TABLE IF NOT EXISTS swaps (id INTEGER PRIMARY KEY AUTOINCREMENT, requester_email TEXT, target_email TEXT, date TEXT, shift_type TEXT, status TEXT DEFAULT "ממתין")')
+    if not conn.execute("SELECT * FROM users WHERE email='raz@soc.com'").fetchone():
+        conn.execute("INSERT INTO users VALUES (?,?,?,?,?)", ("raz@soc.com","123456","רז ברהום","Admin",99))
     conn.commit()
     conn.close()
 
-init_db()
+init()
 
 @app.get("/", response_class=HTMLResponse)
-def get_index(): return (BASE_DIR / "index.html").read_text(encoding="utf-8")
+def home(): return Path("index.html").read_text(encoding="utf-8")
 
-# --- מנוע החלפות ---
-@app.post("/api/swaps/request")
-def request_swap(data: dict):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT INTO swaps (requester_email, target_email, date, shift_type) VALUES (?, ?, ?, ?)",
-                 (data['from'], data['to'], data['date'], data['type']))
-    conn.commit(); conn.close()
-    return {"status": "success"}
-
-@app.get("/api/swaps/pending/{email}")
-def get_pending_swaps(email: str):
-    conn = sqlite3.connect(DB_NAME); conn.row_factory = sqlite3.Row
-    res = conn.execute("SELECT * FROM swaps WHERE (target_email=? OR requester_email=?) AND status != 'מאושר'", (email, email)).fetchall()
-    conn.close(); return [dict(r) for r in res]
-
-# --- ייצוא דוחות לאקסל (CSV) ---
-@app.get("/api/reports/export")
-def export_csv():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT date, type, staff FROM shifts WHERE is_draft=0 ORDER BY date DESC")
-    rows = cursor.fetchall()
-    
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['תאריך', 'משמרת', 'עובד'])
-    writer.writerows(rows)
-    
-    conn.close()
-    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=soc_report.csv"})
-
-# --- פונקציות ליבה ---
 @app.post("/api/login")
-def login(data: dict):
-    conn = sqlite3.connect(DB_NAME); conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM users WHERE email=? AND password=?", (data['email'], data['password'])).fetchone()
+def login(d: dict):
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    u = conn.execute("SELECT * FROM users WHERE email=? AND password=?", (d['email'], d['password'])).fetchone()
     conn.close()
-    if user: return {"status": "success", "user": dict(user)}
-    raise HTTPException(status_code=401)
+    if u: return {"status": "success", "user": dict(u)}
+    raise HTTPException(401)
 
 @app.get("/api/shifts")
-def get_shifts():
-    conn = sqlite3.connect(DB_NAME); conn.row_factory = sqlite3.Row
-    data = [dict(r) for r in conn.execute("SELECT * FROM shifts").fetchall()]
-    conn.close(); return data
+def get_s():
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    res = [dict(r) for r in conn.execute("SELECT * FROM shifts").fetchall()]
+    conn.close(); return res
 
 @app.post("/api/shifts/save")
-def save_shift(shift: dict):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT OR REPLACE INTO shifts (date, type, staff, is_draft) VALUES (?, ?, ?, 1)", (shift['date'], shift['type'], shift['staff']))
-    conn.commit(); conn.close()
-    return {"status": "success"}
+def save_s(s: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("INSERT OR REPLACE INTO shifts VALUES (?,?,?,1)", (s['date'], s['type'], s['staff']))
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.post("/api/shifts/publish")
+def pub_s(d: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("UPDATE shifts SET is_draft=0 WHERE date BETWEEN ? AND ?", (d['start'], d['end']))
+    conn.commit(); conn.close(); return {"status": "ok"}
 
 @app.get("/api/users")
-def get_users():
-    conn = sqlite3.connect(DB_NAME); conn.row_factory = sqlite3.Row
-    data = [dict(r) for r in conn.execute("SELECT * FROM users").fetchall()]
-    conn.close(); return data
+def get_u():
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    res = [dict(r) for r in conn.execute("SELECT * FROM users").fetchall()]
+    conn.close(); return res
+
+@app.post("/api/users")
+def add_u(u: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("INSERT INTO users VALUES (?,?,?,?,2)", (u['email'], u['password'], u['name'], u['role']))
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.post("/api/requests")
+def add_r(r: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("INSERT INTO requests (name,email,date,req_type,reason) VALUES (?,?,?,?,?)", (r['name'],r['email'],r['date'],r['req_type'],r['reason']))
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.get("/api/requests")
+def get_r():
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    res = [dict(r) for r in conn.execute("SELECT * FROM requests").fetchall()]
+    conn.close(); return res
+
+@app.get("/api/handovers")
+def get_h():
+    conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
+    res = [dict(r) for r in conn.execute("SELECT * FROM handovers ORDER BY id DESC LIMIT 10").fetchall()]
+    conn.close(); return res
+
+@app.post("/api/handovers")
+def add_h(d: dict):
+    conn = sqlite3.connect(DB)
+    conn.execute("INSERT INTO handovers (date,author,content,timestamp) VALUES (?,?,?,?)", (datetime.now().strftime("%Y-%m-%d"), d['author'], d['content'], datetime.now().strftime("%H:%M")))
+    conn.commit(); conn.close(); return {"status": "ok"}
+
+@app.get("/api/reports/export")
+def export():
+    conn = sqlite3.connect(DB)
+    rows = conn.execute("SELECT date, type, staff FROM shifts WHERE is_draft=0").fetchall()
+    out = io.StringIO(); writer = csv.writer(out)
+    writer.writerow(['Date', 'Type', 'Staff']); writer.writerows(rows)
+    conn.close()
+    return Response(content=out.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=report.csv"})
