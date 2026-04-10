@@ -72,12 +72,6 @@ def get_r():
     res = [dict(r) for r in conn.execute("SELECT * FROM requests").fetchall()]
     conn.close(); return res
 
-@app.post("/api/requests/status")
-def upd_r(d: dict):
-    conn = sqlite3.connect(DB)
-    conn.execute("UPDATE requests SET status=? WHERE id=?", (d['status'], d['req_id']))
-    conn.commit(); conn.close(); return {"status": "ok"}
-
 @app.get("/api/handovers")
 def get_h():
     conn = sqlite3.connect(DB); conn.row_factory = sqlite3.Row
@@ -89,12 +83,3 @@ def add_h(d: dict):
     conn = sqlite3.connect(DB)
     conn.execute("INSERT INTO handovers (date,author,content,timestamp) VALUES (?,?,?,?)", (datetime.now().strftime("%Y-%m-%d"), d['author'], d['content'], datetime.now().strftime("%H:%M")))
     conn.commit(); conn.close(); return {"status": "ok"}
-
-@app.get("/api/reports/export")
-def export():
-    conn = sqlite3.connect(DB)
-    rows = conn.execute("SELECT date, type, staff FROM shifts WHERE is_draft=0").fetchall()
-    out = io.StringIO(); writer = csv.writer(out)
-    writer.writerow(['Date', 'Type', 'Staff']); writer.writerows(rows)
-    conn.close()
-    return Response(content=out.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=report.csv"})
