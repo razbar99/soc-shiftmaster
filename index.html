@@ -2,83 +2,108 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>SOC MASTER v8.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SOC MASTER MOBILE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
-        body { font-family: 'Assistant', sans-serif; background: #f1f5f9; }
+        body { font-family: 'Assistant', sans-serif; background: #f8fafc; overflow-x: hidden; }
         .tab-active { border-bottom: 4px solid #2563eb; color: #1e40af; font-weight: 800; }
-        .is-draft { border: 2px dashed #3b82f6 !important; opacity: 0.6; }
+        .is-draft { border: 2px dashed #3b82f6 !important; opacity: 0.7; }
         .hidden { display: none; }
+        input, select, textarea { font-size: 16px !important; } /* מונע Zoom מעצבן באייפון */
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
-<div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-        <h1 class="text-3xl font-black mb-6 text-blue-600 italic">SOC MASTER</h1>
-        <input type="email" id="l-email" placeholder="אימייל" class="w-full p-3 border rounded-xl mb-3 text-right">
-        <input type="password" id="l-pass" placeholder="סיסמה" class="w-full p-3 border rounded-xl mb-4 text-right">
-        <button onclick="login()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">כניסה</button>
+<div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-6">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h1 class="text-2xl font-black mb-6 text-slate-800 tracking-tighter italic">SOC MASTER</h1>
+        <div class="space-y-4">
+            <input type="email" id="l-email" placeholder="אימייל" class="w-full p-4 border rounded-2xl text-right outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+            <input type="password" id="l-pass" placeholder="סיסמה" class="w-full p-4 border rounded-2xl text-right outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
+            <button onclick="login()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition">כניסה למערכת</button>
+        </div>
     </div>
 </div>
 
-<div id="app" class="hidden flex-1 flex flex-col overflow-hidden">
-    <nav class="bg-slate-900 text-white p-4 flex justify-between items-center px-8 shadow-xl">
+<div id="app" class="hidden flex-1 flex flex-col">
+    <nav class="bg-slate-900 text-white p-4 flex justify-between items-center px-6 sticky top-0 z-40">
         <span class="font-black italic text-blue-400">SOC MASTER</span>
-        <div class="flex items-center gap-4">
-            <span id="display-name" class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full border border-slate-700"></span>
-            <button onclick="logout()" class="text-xs bg-red-600 px-2 py-1 rounded font-bold">התנתק</button>
-        </div>
+        <button onclick="logout()" class="text-xs bg-red-600/20 text-red-400 px-3 py-1 rounded-full border border-red-500/30">התנתק</button>
     </nav>
 
-    <div class="p-2 flex gap-6 border-b bg-white px-8">
-        <button onclick="showTab('board')" id="t-board" class="tab-active py-2 px-1 font-bold">📅 לוח</button>
-        <button onclick="showTab('personal')" id="t-personal" class="py-2 px-1 text-indigo-600 font-bold">📋 זמינות</button>
-        <div class="hidden admin-only flex gap-6 border-r pr-6">
-            <button onclick="showTab('scheduling')" id="t-scheduling" class="py-2 px-1 text-blue-700 font-bold">🛠 שיבוץ</button>
-            <button onclick="showTab('team')" id="t-team" class="py-2 px-1 text-emerald-600 font-bold">👥 צוות</button>
+    <div class="flex gap-4 border-b bg-white px-6 overflow-x-auto whitespace-nowrap scrollbar-hide sticky top-[56px] z-40 shadow-sm">
+        <button onclick="showTab('board')" id="t-board" class="tab-active py-4 px-2 font-bold text-sm">📅 לוח</button>
+        <button onclick="showTab('personal')" id="t-personal" class="py-4 px-2 text-indigo-600 font-bold text-sm">📋 זמינות</button>
+        <div class="hidden admin-only flex gap-4">
+            <button onclick="showTab('scheduling')" id="t-scheduling" class="py-4 px-2 text-blue-700 font-bold text-sm">🛠 שיבוץ</button>
+            <button onclick="showTab('team')" id="t-team" class="py-4 px-2 text-emerald-600 font-bold text-sm">👥 צוות</button>
         </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4">
-        <div id="v-board" class="max-w-7xl mx-auto space-y-4 text-right">
-            <div class="flex justify-between items-center bg-white p-2 border rounded"><button onclick="moveWeek(-7)">➡️</button><h2 id="week-label" class="font-bold"></h2><button onclick="moveWeek(7)">⬅️</button></div>
-            <div id="grid" class="grid grid-cols-1 md:grid-cols-7 gap-2"></div>
+    <div class="p-4 md:p-8 flex-1">
+        <div id="v-board" class="max-w-7xl mx-auto space-y-4">
+            <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <button onclick="moveWeek(-7)" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">➡️</button>
+                <h2 id="week-label" class="font-black text-sm text-slate-700"></h2>
+                <button onclick="moveWeek(7)" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">⬅️</button>
+            </div>
+            <div id="grid" class="grid grid-cols-1 md:grid-cols-7 gap-3"></div>
         </div>
 
-        <div id="v-scheduling" class="hidden max-w-5xl mx-auto space-y-6 text-right">
-            <div class="bg-indigo-700 p-6 rounded-2xl text-white shadow-xl flex justify-between items-center">
-                <div><h3 class="font-bold text-lg italic">AI AUTO-ASSIGN</h3><p class="text-xs opacity-70">שיבוץ חכם לפי חסימות.</p></div>
-                <button onclick="runAutoAssign()" class="bg-white text-indigo-700 px-6 py-2 rounded-xl font-bold">שבץ הכל</button>
+        <div id="v-scheduling" class="hidden max-w-2xl mx-auto space-y-6 text-right">
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-800 p-6 rounded-3xl text-white shadow-xl">
+                <h3 class="font-black text-lg mb-2">AI AUTO-ASSIGN</h3>
+                <p class="text-xs opacity-80 mb-4">שיבוץ אוטומטי לפי חסימות האנליסטים.</p>
+                <button onclick="runAutoAssign()" class="w-full bg-white text-blue-800 py-3 rounded-xl font-black shadow-lg">הפעל שיבוץ חכם</button>
             </div>
-            <div class="bg-white p-4 border rounded shadow-sm">
-                <input type="date" id="s-date" onchange="checkAvail(this.value)" class="border p-1 rounded"><select id="s-type" class="border p-1 rounded font-bold"><option>בוקר</option><option>ערב</option><option>לילה</option></select>
-                <div id="avail-list" class="border p-2 mt-2 h-20 overflow-y-auto text-xs bg-slate-50"></div>
-                <button onclick="saveShift()" id="btn-save" disabled class="mt-2 bg-black text-white px-6 py-1 rounded opacity-50">שבץ טיוטה</button>
+            <div class="bg-white p-5 border rounded-3xl shadow-sm space-y-4">
+                <h4 class="font-black text-slate-700">שיבוץ ידני</h4>
+                <input type="date" id="s-date" onchange="checkAvail(this.value)" class="w-full border p-3 rounded-xl bg-slate-50">
+                <select id="s-type" class="w-full border p-3 rounded-xl bg-slate-50 font-bold"><option>בוקר</option><option>ערב</option><option>לילה</option></select>
+                <div id="avail-list" class="border p-3 rounded-xl h-32 overflow-y-auto text-xs bg-slate-50 space-y-2"></div>
+                <button onclick="saveShift()" id="btn-save" disabled class="w-full bg-slate-900 text-white py-3 rounded-xl font-black opacity-50">שבץ כטיוטה</button>
             </div>
-            <button onclick="publishWeek()" class="bg-emerald-600 text-white p-3 rounded w-full font-bold">פרסם סידור</button>
+            <button onclick="publishWeek()" class="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black text-lg shadow-xl">פרסם סידור רשמי</button>
         </div>
 
-        <div id="v-team" class="hidden max-w-5xl mx-auto space-y-6 text-right">
-            <div class="bg-white p-4 border rounded shadow-sm">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-                    <input type="text" id="n-name" placeholder="שם" class="border p-2 text-xs">
-                    <input type="email" id="n-email" placeholder="מייל" class="border p-2 text-xs">
-                    <input type="text" id="n-phone" placeholder="נייד" class="border p-2 text-xs">
-                    <select id="n-role" class="border p-2 text-xs font-bold"><option value="User">עובד SOC</option><option value="Admin">מנהל</option></select>
-                    <input type="password" id="n-pass" placeholder="סיסמה" class="border p-2 text-xs">
-                </div>
-                <button onclick="saveUser()" class="w-full bg-emerald-600 text-white p-2 rounded font-bold">שמור עובד</button>
-                <div id="u-list-view" class="grid gap-2 mt-4"></div>
+        <div id="v-team" class="hidden max-w-2xl mx-auto space-y-6 text-right">
+            <div class="bg-white p-6 border rounded-3xl shadow-sm border-t-8 border-emerald-500 space-y-3">
+                <h3 class="font-bold text-emerald-800 italic mb-2">עובד חדש / עריכה</h3>
+                <input type="text" id="n-name" placeholder="שם מלא" class="w-full border p-3 rounded-xl text-sm">
+                <input type="email" id="n-email" placeholder="אימייל" class="w-full border p-3 rounded-xl text-sm">
+                <input type="text" id="n-phone" placeholder="מספר נייד" class="w-full border p-3 rounded-xl text-sm">
+                <select id="n-role" class="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50">
+                    <option value="User">עובד SOC</option>
+                    <option value="Admin">מנהל (הרשאות)</option>
+                </select>
+                <input type="password" id="n-pass" placeholder="סיסמה" class="w-full border p-3 rounded-xl text-sm">
+                <button onclick="saveUser()" class="w-full bg-emerald-600 text-white p-3 rounded-xl font-bold shadow-lg">שמור פרטים</button>
             </div>
+            <div id="u-list-view" class="space-y-3"></div>
         </div>
 
-        <div id="v-personal" class="hidden max-w-4xl mx-auto bg-white p-4 border rounded-2xl shadow-xl text-right">
-            <div class="flex justify-center items-center gap-4 mb-4 bg-slate-50 p-2 rounded border"><button onclick="movePersonalWeek(-7)">➡️</button><span id="p-week-label" class="font-bold text-blue-600"></span><button onclick="movePersonalWeek(7)">⬅️</button></div>
-            <table class="w-full border-collapse border text-[10px]"><thead id="p-days-row"></thead><tbody id="p-matrix-body"></tbody></table>
-            <button onclick="saveAvailability()" class="mt-4 w-full bg-indigo-600 text-white p-4 rounded font-bold">שמור זמינות שבועית</button>
+        <div id="v-personal" class="hidden max-w-4xl mx-auto bg-white p-6 rounded-3xl shadow-2xl text-right">
+            <h3 class="font-black text-xl mb-4 text-slate-800 border-b pb-2">הגשת זמינות</h3>
+            <div class="flex justify-between items-center mb-6 bg-slate-100 p-3 rounded-2xl border">
+                <button onclick="movePersonalWeek(-7)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-xl">➡️</button>
+                <span id="p-week-label" class="font-bold text-blue-700 text-sm"></span>
+                <button onclick="movePersonalWeek(7)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-xl">⬅️</button>
+            </div>
+            <div class="overflow-x-auto -mx-6 px-6 pb-2">
+                <table class="w-full border-collapse min-w-[600px]">
+                    <thead><tr id="p-days-row" class="bg-slate-200"><th class="p-3 border italic text-xs">משמרת</th></tr></thead>
+                    <tbody id="p-matrix-body"></tbody>
+                </table>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 font-bold italic">* ניתן לגלול את הטבלה הצידה</p>
+            <textarea id="p-notes" class="w-full border p-4 rounded-2xl mt-4 h-20 bg-slate-50 outline-none" placeholder="הערות למנהל..."></textarea>
+            <button onclick="saveAvailability()" class="mt-4 w-full bg-indigo-600 text-white p-5 rounded-2xl font-black text-lg shadow-xl shadow-indigo-200">💾 שלח זמינות</button>
         </div>
     </div>
 </div>
@@ -90,18 +115,16 @@
     let pSun = new Date(currentSun);
 
     async function login() {
-        const e=document.getElementById('l-email').value, p=document.getElementById('l-pass').value;
-        try {
-            const res = await fetch(`${API_URL}/api/login`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e, password:p})});
-            if(res.ok) {
-                userData = (await res.json()).user;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
-                document.getElementById('display-name').innerText = userData.name;
-                if(userData.role==='Admin') document.querySelectorAll('.admin-only').forEach(x=>x.classList.remove('hidden'));
-                showTab('board');
-            } else alert("פרטים שגויים");
-        } catch(e) { alert("שגיאת חיבור"); }
+        const e = document.getElementById('l-email').value;
+        const p = document.getElementById('l-pass').value;
+        const res = await fetch(`${API_URL}/api/login`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:e, password:p})});
+        if(res.ok) {
+            userData = (await res.json()).user;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+            if(userData.role==='Admin') document.querySelectorAll('.admin-only').forEach(x=>x.classList.remove('hidden'));
+            showTab('board');
+        } else alert("פרטי כניסה שגויים");
     }
 
     function logout() { location.reload(); }
@@ -111,8 +134,8 @@
             const v = document.getElementById('v-'+id); const b = document.getElementById('t-'+id);
             if(v) v.classList.add('hidden'); if(b) b.classList.remove('tab-active');
         });
-        document.getElementById('v-'+t).classList.remove('hidden');
-        document.getElementById('t-'+t).classList.add('tab-active');
+        const v = document.getElementById('v-'+t); const b = document.getElementById('t-'+t);
+        if(v) v.classList.remove('hidden'); if(b) b.classList.add('tab-active');
         if(t==='board') renderBoard();
         if(t==='personal') renderMatrix();
         if(t==='team') loadStaff();
@@ -125,10 +148,11 @@
         const grid = document.getElementById('grid'); grid.innerHTML = '';
         for(let i=0; i<7; i++) {
             let d = new Date(currentSun); d.setDate(d.getDate() + i); let dStr = d.toISOString().split('T')[0];
-            let html = `<div class="bg-white border rounded shadow-sm min-h-[150px]"><div class="bg-slate-800 text-white text-center text-[10px] p-1 uppercase">${d.getDate()}/${d.getMonth()+1}</div><div class="p-1 space-y-1">`;
+            let html = `<div class="bg-white border rounded-2xl overflow-hidden shadow-sm"><div class="bg-slate-800 text-white text-center text-[10px] p-2 font-bold">${d.getDate()}/${d.getMonth()+1} - ${['א','ב','ג','ד','ה','ו','ש'][i]}'</div><div class="p-2 space-y-2 text-right">`;
             shifts.filter(s => s.date === dStr).forEach(s => {
                 if(s.is_draft && userData.role !== 'Admin') return;
-                html += `<div class="p-1 text-[9px] rounded border font-bold bg-blue-50 ${s.is_draft?'is-draft':''}">${s.type}: ${s.staff}</div>`;
+                let mine = s.staff.includes(userData.name) ? 'border-2 border-blue-500 bg-blue-50' : 'bg-slate-50';
+                html += `<div class="p-2 text-[10px] rounded-xl border font-bold ${s.is_draft?'is-draft':''} ${mine}">${s.type}: ${s.staff}</div>`;
             });
             grid.innerHTML += html + `</div></div>`;
         }
@@ -137,18 +161,18 @@
     function renderMatrix() {
         const end = new Date(pSun); end.setDate(end.getDate() + 6);
         document.getElementById('p-week-label').innerText = `${pSun.getDate()}/${pSun.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}`;
-        let h = '<th class="p-1 border bg-slate-200">משמרת</th>';
+        let h = '<th class="p-3 border italic text-xs bg-slate-100">משמרת</th>';
         for(let i=0; i<7; i++) {
             let d = new Date(pSun); d.setDate(pSun.getDate() + i);
-            h += `<th class="p-1 border bg-slate-100">${['א','ב','ג','ד','ה','ו','ש'][i]}'<br>${d.getDate()}/${d.getMonth()+1}</th>`;
+            h += `<th class="p-3 border text-[10px] bg-white">${['א','ב','ג','ד','ה','ו','ש'][i]}'<br>${d.getDate()}/${d.getMonth()+1}</th>`;
         }
         document.getElementById('p-days-row').innerHTML = h;
         let b = '';
         ['בוקר','ערב','לילה'].forEach(t => {
-            b += `<tr><td class="p-1 border font-bold bg-slate-50">${t}</td>`;
+            b += `<tr><td class="p-3 border font-black text-xs bg-slate-50">${t}</td>`;
             for(let i=0; i<7; i++) {
                 let id = `cell-${new Date(new Date(pSun).setDate(pSun.getDate()+i)).toISOString().split('T')[0]}-${t}`;
-                b += `<td class="border p-0 text-center"><div onclick="toggleCell('${id}')" id="${id}" data-state="v" class="h-8 flex items-center justify-center cursor-pointer bg-green-50 text-green-600"><i class="fa-solid fa-check text-xs"></i></div></td>`;
+                b += `<td class="border p-0 text-center"><div onclick="toggleCell('${id}')" id="${id}" data-state="v" class="h-14 flex items-center justify-center cursor-pointer bg-green-50 text-green-600 transition text-xl"><i class="fa-solid fa-check"></i></div></td>`;
             }
             b += `</tr>`;
         });
@@ -158,8 +182,8 @@
     function toggleCell(id) {
         const el = document.getElementById(id); const isV = el.getAttribute('data-state') === 'v';
         el.setAttribute('data-state', isV ? 'x' : 'v');
-        el.className = isV ? "h-8 flex items-center justify-center cursor-pointer bg-red-50 text-red-600" : "h-8 flex items-center justify-center cursor-pointer bg-green-50 text-green-600";
-        el.innerHTML = isV ? '<i class="fa-solid fa-xmark text-xs"></i>' : '<i class="fa-solid fa-check text-xs"></i>';
+        el.className = isV ? "h-14 flex items-center justify-center cursor-pointer bg-red-50 text-red-600 transition" : "h-14 flex items-center justify-center cursor-pointer bg-green-50 text-green-600 transition";
+        el.innerHTML = isV ? '<i class="fa-solid fa-xmark text-xl"></i>' : '<i class="fa-solid fa-check text-xl"></i>';
     }
 
     async function saveAvailability() {
@@ -170,26 +194,31 @@
                 await fetch(`${API_URL}/api/requests`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:userData.name, email:userData.email, date:`${p[1]}-${p[2]}-${p[3]}`, req_type:'חסום: '+p[4], reason:'X'})});
             }
         }
-        alert("נשלח!"); showTab('board');
+        alert("נשלח בהצלחה!"); showTab('board');
     }
 
     async function runAutoAssign() {
+        if(!confirm("להפעיל שיבוץ אוטומטי?")) return;
         const s = currentSun.toISOString().split('T')[0];
         const e = new Date(currentSun); e.setDate(e.getDate() + 6);
         await fetch(`${API_URL}/api/shifts/auto-assign`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({start:s, end:e.toISOString().split('T')[0]})});
-        alert("הושלם!"); renderBoard();
+        alert("השיבוץ הושלם!"); renderBoard();
     }
 
     async function loadStaff() {
         const res = await fetch(`${API_URL}/api/users`);
         const users = await res.json(); window.allUsers = users;
-        document.getElementById('u-list-view').innerHTML = users.map(u => `<div class="p-2 border rounded bg-white flex justify-between items-center text-[10px]"><span>${u.name} (${u.role})</span><div class="flex gap-2"><button onclick="deleteUser('${u.email}')" class="text-red-500">מחק</button></div></div>`).join('');
+        document.getElementById('u-list-view').innerHTML = users.map(u => `
+            <div class="p-4 border rounded-3xl bg-white flex justify-between items-center shadow-sm">
+                <div><strong class="text-blue-700">${u.name}</strong><br><span class="text-[10px] opacity-60 font-bold">${u.phone || 'בלי נייד'}</span></div>
+                <div class="flex gap-4"><button onclick="deleteUser('${u.email}')" class="text-red-500 font-bold text-xs"><i class="fa-solid fa-trash"></i></button></div>
+            </div>`).join('');
     }
 
     async function saveUser() {
         const p = { name: document.getElementById('n-name').value, email: document.getElementById('n-email').value, phone: document.getElementById('n-phone').value, role: document.getElementById('n-role').value, password: document.getElementById('n-pass').value };
         await fetch(`${API_URL}/api/users/save`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        alert("נשמר!"); loadStaff();
+        alert("העובד נשמר!"); loadStaff();
     }
 
     async function deleteUser(email) {
@@ -201,7 +230,7 @@
 
     async function checkAvail(date) {
         const res = await fetch(`${API_URL}/api/admin/availability/${date}`); const users = await res.json();
-        document.getElementById('avail-list').innerHTML = users.map(u => `<div onclick="selectedStaff='${u.name}'; alert('נבחר: '+u.name)" class="p-1 border-b cursor-pointer flex justify-between ${u.is_blocked?'text-red-500':'text-green-600'}"><strong>${u.name}</strong> <span>${u.is_blocked?'[חסום]':''}</span></div>`).join('');
+        document.getElementById('avail-list').innerHTML = users.map(u => `<div onclick="selectedStaff='${u.name}'; alert('נבחר: '+u.name)" class="p-3 border-b cursor-pointer flex justify-between items-center ${u.is_blocked?'text-red-500 bg-red-50':'text-green-600'}"><strong>${u.name}</strong> <span>${u.is_blocked?'[חסום]':''}</span></div>`).join('');
         document.getElementById('btn-save').disabled = false; document.getElementById('btn-save').classList.remove('opacity-50');
     }
 
@@ -214,7 +243,7 @@
         const s = currentSun.toISOString().split('T')[0];
         const e = new Date(currentSun); e.setDate(e.getDate() + 6);
         await fetch(`${API_URL}/api/shifts/publish`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({start:s, end:e.toISOString().split('T')[0]})});
-        alert("פורסם!"); renderBoard();
+        alert("הסידור פורסם!"); renderBoard();
     }
 
     function moveWeek(d) { currentSun.setDate(currentSun.getDate() + d); renderBoard(); }
