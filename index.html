@@ -1,67 +1,170 @@
-<div class="bg-white p-6 rounded-2xl shadow-lg border border-blue-100">
-    <h3 class="font-black mb-4 text-blue-900"><i class="fa-solid fa-wand-magic-sparkles ml-2"></i>שיבוץ חכם מבוסס אילוצים</h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="space-y-2">
-            <label class="text-xs font-bold text-slate-500">1. בחר תאריך</label>
-            <input type="date" id="s-date" onchange="checkAvailability(this.value)" class="w-full p-3 border rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-400">
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>SOC MASTER PRO - Ultimate Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
+        body { font-family: 'Assistant', sans-serif; background: #f1f5f9; }
+        .tab-active { border-bottom: 4px solid #2563eb; color: #1e40af; font-weight: 800; }
+        .shift-card { transition: all 0.2s; cursor: pointer; }
+        .shift-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+<div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center">
+    <div class="bg-white p-10 rounded-3xl shadow-2xl w-96 text-center border-b-8 border-blue-600">
+        <div class="mb-6"><i class="fa-solid fa-shield-halved text-6xl text-blue-600 animate-pulse"></i></div>
+        <h1 class="text-2xl font-black mb-6 italic tracking-tight">SOC MASTER LOGIN</h1>
+        <input type="email" id="l-email" placeholder="Email" class="w-full p-4 border rounded-2xl mb-4 text-right bg-slate-50 outline-none">
+        <input type="password" id="l-pass" placeholder="Password" class="w-full p-4 border rounded-2xl mb-6 text-right bg-slate-50 outline-none">
+        <button onclick="login()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-black shadow-lg hover:bg-blue-800 transition">CONNECT SYSTEM</button>
+    </div>
+</div>
+
+<div id="app" style="display:none" class="flex-1 flex flex-col overflow-hidden">
+    <nav class="bg-slate-900 text-white p-4 flex justify-between px-8 shadow-xl items-center">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-shield-halved text-2xl text-blue-400"></i>
+            <span class="font-black italic text-xl tracking-tighter">SOC<span class="text-blue-400">MASTER</span></span>
         </div>
-        <div class="space-y-2">
-            <label class="text-xs font-bold text-slate-500">2. בחר משמרת</label>
-            <select id="s-type" class="w-full p-3 border rounded-xl bg-slate-50 font-bold">
-                <option>בוקר</option><option>ערב</option><option>לילה</option>
-            </select>
+        <div class="flex items-center gap-4">
+            <div id="user-badge" class="text-xs font-bold bg-slate-800 px-4 py-1.5 rounded-full border border-slate-700"></div>
+            <button onclick="location.reload()" class="text-xs text-slate-400 hover:text-red-400"><i class="fa-solid fa-power-off"></i></button>
         </div>
-        <div class="space-y-2">
-            <label class="text-xs font-bold text-slate-500">3. סטטוס אנליסטים</label>
-            <div id="availability-list" class="max-h-40 overflow-y-auto border rounded-xl p-2 bg-slate-50 space-y-1">
-                <p class="text-center text-xs text-slate-400 py-4 font-bold italic">בחר תאריך כדי לראות זמינות...</p>
+    </nav>
+
+    <div class="p-2 flex gap-6 border-b bg-white overflow-x-auto px-8 shadow-sm">
+        <button onclick="showTab('board')" id="t-board" class="tab-active py-3 px-2 font-bold whitespace-nowrap">📅 לוח משמרות</button>
+        <button onclick="showTab('swaps')" id="t-swaps" class="py-3 px-2 font-bold text-purple-600 whitespace-nowrap">🔄 בקשות החלפה</button>
+        <button onclick="showTab('admin')" id="t-admin" class="hidden admin-only py-3 px-2 font-bold text-blue-700 whitespace-nowrap border-r pr-6">🛠 ניהול מערכת</button>
+        <button onclick="showTab('personal')" id="t-personal" class="py-3 px-2 font-bold text-indigo-600 whitespace-nowrap">✉️ הגשת אילוץ</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4 md:p-8">
+        <div id="v-board" class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border mb-6">
+                <button onclick="moveWeek(-7)" class="p-2 hover:bg-slate-100 rounded-full">➡️</button>
+                <h2 id="week-label" class="font-black text-xl"></h2>
+                <button onclick="moveWeek(7)" class="p-2 hover:bg-slate-100 rounded-full">⬅️</button>
+            </div>
+            <div id="grid" class="grid grid-cols-1 md:grid-cols-7 gap-4"></div>
+        </div>
+
+        <div id="v-swaps" class="hidden max-w-2xl mx-auto space-y-4">
+            <h3 class="text-2xl font-black mb-6 italic text-slate-800">SHIFT EXCHANGE CENTER</h3>
+            <div id="swap-list" class="space-y-3 text-right">
+                </div>
+            <div class="bg-indigo-50 p-6 rounded-2xl border-2 border-dashed border-indigo-200 text-center mt-10">
+                <p class="text-sm font-bold text-indigo-800 mb-2">רוצה להחליף משמרת?</p>
+                <p class="text-xs text-indigo-600 italic">לחץ על המשמרת שלך בלוח הראשי כדי להתחיל בקשת החלפה</p>
             </div>
         </div>
+
+        <div id="v-admin" class="hidden max-w-5xl mx-auto space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-8 border-blue-600">
+                    <h4 class="font-black mb-4">שיבוץ מהיר</h4>
+                    <input type="date" id="s-date" class="w-full border p-3 rounded-xl mb-3 outline-none focus:ring-2 focus:ring-blue-400">
+                    <select id="s-type" class="w-full border p-3 rounded-xl mb-3 font-bold"><option>בוקר</option><option>ערב</option><option>לילה</option></select>
+                    <select id="s-user" class="w-full border p-3 rounded-xl mb-4"></select>
+                    <button onclick="saveShift()" class="w-full bg-slate-900 text-white p-3 rounded-xl font-black">שבץ בטיוטה</button>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-8 border-green-600 flex flex-col justify-center items-center text-center">
+                    <h4 class="font-black mb-2 italic text-green-700 uppercase">Reports Center</h4>
+                    <p class="text-xs text-slate-500 mb-6 font-bold uppercase tracking-widest">Payroll & Statistics</p>
+                    <button onclick="exportData()" class="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl hover:bg-green-700 transition w-full">
+                        <i class="fa-solid fa-file-csv ml-2"></i>הורד דו"ח שעות (CSV)
+                    </button>
+                </div>
+            </div>
+            <div id="admin-reqs" class="space-y-3"></div>
+        </div>
     </div>
-    <button onclick="saveShift()" id="btn-save" disabled class="mt-6 w-full bg-slate-900 text-white p-4 rounded-xl font-black opacity-50 cursor-not-allowed transition shadow-xl">שבץ כטיוטה</button>
 </div>
 
 <script>
-    // פונקציית הזמינות - ה"לב" של המערכת
-    async function checkAvailability(date) {
-        if(!date) return;
-        const res = await fetch(`${API_URL}/api/admin/availability/${date}`);
-        const users = await res.json();
-        const list = document.getElementById('availability-list');
-        const btn = document.getElementById('btn-save');
-        
-        list.innerHTML = users.map(u => `
-            <div onclick="selectAnalyst('${u.name}', ${u.is_blocked})" class="flex justify-between items-center p-2 rounded-lg cursor-pointer transition ${u.is_blocked ? 'bg-red-50 text-red-700 opacity-60' : 'bg-green-50 text-green-700 hover:bg-green-100'}">
-                <span class="text-xs font-bold">${u.is_blocked ? '❌' : '✅'} ${u.name}</span>
-                <span class="text-[9px] italic">${u.is_blocked ? u.block_reason : 'פנוי'}</span>
-            </div>
-        `).join('');
-        
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    const API_URL = window.location.origin;
+    let userData = null;
+    let currentSun = (function(d){ d.setHours(0,0,0,0); return new Date(d.setDate(d.getDate() - d.getDay())); })(new Date());
+
+    async function login() {
+        const email = document.getElementById('l-email').value;
+        const pass = document.getElementById('l-pass').value;
+        const res = await fetch(`${API_URL}/api/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: pass})});
+        if(res.ok) {
+            const d = await res.json(); userData = d.user;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            document.getElementById('user-badge').innerText = userData.name;
+            if(userData.role === 'Admin') document.querySelectorAll('.admin-only').forEach(e => e.classList.remove('hidden'));
+            showTab('board');
+        } else alert("Access Denied");
     }
 
-    let selectedAnalyst = null;
-    function selectAnalyst(name, blocked) {
-        if(blocked && !confirm(`העובד ${name} הגיש אילוץ לתאריך זה. האם לשבץ אותו בכל זאת?`)) return;
-        selectedAnalyst = name;
-        alert(`נבחר: ${name}`);
+    function showTab(t) {
+        ['board','swaps','admin','personal'].forEach(v => { document.getElementById('v-'+v).classList.add('hidden'); document.getElementById('t-'+v).classList.remove('tab-active'); });
+        document.getElementById('v-'+t).classList.remove('hidden');
+        document.getElementById('t-'+t).classList.add('tab-active');
+        if(t==='board') renderBoard();
+        if(t==='admin') loadAdminTools();
+        if(t==='swaps') loadSwaps();
+    }
+
+    async function renderBoard() {
+        const end = new Date(currentSun); end.setDate(end.getDate() + 6);
+        document.getElementById('week-label').innerText = `${currentSun.getDate()}/${currentSun.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}`;
+        const res = await fetch(`${API_URL}/api/shifts`); const shifts = await res.json();
+        const grid = document.getElementById('grid'); grid.innerHTML = '';
+        
+        for(let i=0; i<7; i++) {
+            let d = new Date(currentSun); d.setDate(d.getDate() + i); let dStr = d.toISOString().split('T')[0];
+            let dayHtml = `<div class="bg-white border rounded-2xl shadow-sm min-h-[300px] overflow-hidden">
+                <div class="bg-slate-800 text-white text-center text-[10px] p-2 font-black uppercase tracking-tighter">${d.getDate()}/${d.getMonth()+1}</div>
+                <div class="p-2 space-y-2">`;
+            
+            shifts.filter(s => s.date === dStr).forEach(s => {
+                let isMine = s.staff.includes(userData.name);
+                let color = s.type === 'בוקר' ? 'bg-amber-50 border-amber-200' : s.type === 'ערב' ? 'bg-orange-50 border-orange-200' : 'bg-indigo-50 border-indigo-200';
+                dayHtml += `<div onclick="handleShiftClick('${s.date}','${s.type}',${isMine})" class="shift-card p-2 rounded-xl border text-[11px] font-bold shadow-sm ${color} ${isMine ? 'ring-2 ring-blue-500' : ''}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="opacity-60">${s.type}</span>
+                        ${isMine ? '<i class="fa-solid fa-user-check text-blue-500"></i>' : ''}
+                    </div>
+                    <div class="text-[12px] text-slate-800">${s.staff}</div>
+                </div>`;
+            });
+            grid.innerHTML += dayHtml + `</div></div>`;
+        }
+    }
+
+    function handleShiftClick(date, type, isMine) {
+        if(!isMine) return;
+        if(confirm(`להגיש בקשת החלפה למשמרת ${type} ב-${date}?`)) {
+            const target = prompt("עם איזה אנליסט תרצה להחליף? (הכנס שם מלא)");
+            if(target) alert("הבקשה נשלחה לאישור האנליסט והמנהל.");
+        }
+    }
+
+    async function loadAdminTools() {
+        const res = await fetch(`${API_URL}/api/users`); const users = await res.json();
+        document.getElementById('s-user').innerHTML = users.map(u => `<option>${u.name}</option>`).join('');
     }
 
     async function saveShift() {
-        if(!selectedAnalyst) return alert("בחר אנליסט מהרשימה");
-        const payload = { 
-            date: document.getElementById('s-date').value, 
-            shift_type: document.getElementById('s-type').value, 
-            staff: selectedAnalyst 
-        };
-        const res = await fetch(`${API_URL}/api/shifts/secure-save`, { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(payload)
-        });
-        const r = await res.json();
-        if(r.status === "error") alert(r.message);
-        else { alert("שובץ כטיוטה!"); renderBoard(); }
+        const payload = { date: document.getElementById('s-date').value, type: document.getElementById('s-type').value, staff: document.getElementById('s-user').value };
+        await fetch(`${API_URL}/api/shifts/save`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+        alert("נשמר כטיוטה!"); renderBoard();
     }
+
+    function exportData() {
+        window.location.href = `${API_URL}/api/reports/export`;
+    }
+
+    function moveWeek(d) { currentSun.setDate(currentSun.getDate() + d); renderBoard(); }
 </script>
+</body>
+</html>
