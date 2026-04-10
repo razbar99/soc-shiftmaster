@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB = "soc_v12_5.db" # מסד נתונים חדש לגמרי לניקיון
+DB = "soc_v13.db"
 
 def init_db():
     conn = sqlite3.connect(DB)
@@ -42,9 +42,7 @@ def get_u():
 @app.post("/api/users/save")
 def save_u(u: dict):
     conn = sqlite3.connect(DB)
-    conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", 
-                 (u['email'], u['password'], u['name'], u['role'], u.get('phone',''), 
-                  u.get('q_m',2), u.get('q_e',2), u.get('q_n',1), u.get('q_w',1)))
+    conn.execute("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", (u['email'], u['password'], u['name'], u['role'], u.get('phone',''), 2, 2, 1, 1))
     conn.commit(); conn.close(); return {"status": "ok"}
 
 @app.post("/api/users/delete")
